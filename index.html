@@ -1252,6 +1252,7 @@
           showSongModal.value = true;
         };
         const saveSong = async () => {
+          if (!editSong.value) return;
           saving.value = true;
           try {
             const res = await callApi('saveSong', editSong.value);
@@ -1347,6 +1348,7 @@
           editStudio.value.参加メンバー = [...arr];
         };
         const saveStudio = async () => {
+          if (!editStudio.value) return;
           saving.value = true;
           try {
             const res = await callApi('saveStudio', editStudio.value);
@@ -1427,6 +1429,7 @@
           activeLive.value.参加メンバー = [...activeLive.value.参加メンバー];
         };
         const saveActiveLive = async () => {
+          if (!activeLive.value) return;
           saving.value = true;
           try {
             const res = await callApi('saveLive', activeLive.value);
