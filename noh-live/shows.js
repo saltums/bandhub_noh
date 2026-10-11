@@ -58,7 +58,7 @@ window.SHOWS = [
   {"date":"2018-11-07","title":"SHMU JAPAN TOUR","venue":"JAMMIN'","pref":"愛知","acts":["SHMU(US)","Musle Soul","The Rainy","Kanna"],"open":"","start":"18:30","price":"前売2000","note":"","era":"noh"},
   {"date":"2018-10-27","title":"空白の夜企画「夜に浮かぶ街」","venue":"四日市CLUB CHAOS","pref":"三重","acts":["空白の夜","ヨルベリウム","sheeptwarp"],"open":"","start":"","price":"","note":"他にも出演あり","era":"noh"},
   {"date":"2018-10-12","title":"青天のmyway TOUR2018","venue":"CLUB ROCK 'N' ROLL","pref":"愛知","acts":["mywaymylove","青天の霹靂","サクラショック！"],"open":"","start":"","price":"","note":"","era":"noh"},
-  {"date":"2018-09-01","title":"OWEAKレコ発 上前津編","venue":"上前津ZION","pref":"愛知","acts":["OWEAK","RESTART","WAFY","THRASHOUT","NEATZ","UPPERCUT","Back Muscle Power"],"open":"","start":"","price":"","note":"noh名義でのライブ","era":"noh"},
+  {"date":"2018-09-01","title":"OWEAKレコ発 上前津編","venue":"上前津ZION","pref":"愛知","acts":["OWEAK","RESTART","WAFY","THRASHOUT","NEATZ","UPPERCUT","Back Muscle Power"],"open":"","start":"","price":"","note":"noh名義での初ライブ(2018/09/01・土)","era":"noh"},
   {"date":"2018-07-29","title":"(企画名未確認)","venue":"CLUB ROCK 'N' ROLL","pref":"愛知","acts":["猫ラーメン","虚ろ","sable antelope"],"open":"","start":"","price":"","note":"jointrally名義での最後のライブ","era":"jointrally"},
   {"date":"2018-05-05","title":"World Maps＆sozoro座modeダブルレコ発","venue":"JAMMIN'","pref":"愛知","acts":["World Maps","sozoro座mode","The Hey Song","Swirl Tone(OA)"],"open":"","start":"","price":"","note":"","era":"jointrally"},
   {"date":"2018-04-22","title":"(詳細未確認)","venue":"栄R.A.D","pref":"愛知","acts":[],"open":"","start":"","price":"","note":"出演者は画像告知のため未確認","era":"jointrally"},
