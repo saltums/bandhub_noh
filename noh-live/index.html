@@ -3,206 +3,177 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>noh ライブ履歴</title>
+<title>noh / JointRally ライブ履歴</title>
+<link rel="stylesheet" href="common.css">
 <style>
-  :root{
-    --bg:#faf9f7; --panel:#ffffff; --ink:#1d1d1f; --muted:#6b6b72; --line:#e4e2dd;
-    --accent:#2a5bd7; --accent-soft:#e8eefc; --chip:#f0eee9; --warn:#fff4d6;
-  }
-  @media (prefers-color-scheme: dark){
-    :root{ --bg:#141416; --panel:#1d1d20; --ink:#ececf0; --muted:#9a9aa5; --line:#2e2e34;
-      --accent:#7da2ff; --accent-soft:#222c47; --chip:#2a2a30; --warn:#3a3322; }
-  }
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,"Hiragino Sans","Noto Sans JP",sans-serif}
-  header{padding:28px 16px 8px;max-width:1100px;margin:0 auto}
-  h1{margin:0;font-size:26px;letter-spacing:.02em}
-  .sub{color:var(--muted);margin-top:4px}
-  main{max-width:1100px;margin:0 auto;padding:12px 16px 60px;display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:20px}
-  @media (max-width:860px){ main{grid-template-columns:1fr} }
-  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
-  .controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
-  label{display:block;font-size:12px;color:var(--muted);margin-bottom:2px}
-  input[type=search],select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit}
-  .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
-  .chip{display:inline-block;padding:2px 10px;border-radius:999px;background:var(--chip);font-size:13px;cursor:pointer;border:1px solid transparent;user-select:none}
+  .layout{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:20px;align-items:start;padding-bottom:20px}
+  @media (max-width:900px){.layout{grid-template-columns:1fr}}
+  .filters{display:grid;grid-template-columns:2fr repeat(4,1fr);gap:10px}
+  @media (max-width:900px){.filters{grid-template-columns:1fr 1fr}.filters .wide{grid-column:1/-1}}
+  .filters label{display:block;font-size:12px;color:var(--muted);margin:0 0 4px 2px}
+  .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px}
+  .bar .sp{flex:1}
+  .chk{display:flex;align-items:center;gap:6px;font-size:13.5px;color:var(--muted)}
+  .sel{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+  .tag{display:inline-flex;align-items:center;gap:6px;padding:4px 6px 4px 12px;border-radius:999px;background:var(--accent);color:var(--accent-ink);font-size:13px;cursor:pointer}
+  .tag b{opacity:.7;font-weight:400}
+  .result{margin:18px 2px 10px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .result strong{font-size:22px;letter-spacing:-.02em}
+  .yr{margin:22px 2px 8px;font-size:13px;font-weight:700;letter-spacing:.08em;color:var(--muted);display:flex;align-items:center;gap:10px}
+  .yr::after{content:"";flex:1;height:1px;background:var(--line)}
+  details.show{background:var(--panel);border:1px solid var(--line);border-radius:12px;margin-bottom:8px;transition:border-color .15s,box-shadow .15s}
+  details.show:hover{border-color:color-mix(in srgb,var(--accent) 40%,var(--line))}
+  details.show[open]{box-shadow:var(--shadow)}
+  details.show>summary{cursor:pointer;padding:12px 16px;list-style:none;display:grid;grid-template-columns:86px 1fr auto;gap:12px;align-items:center}
+  details.show>summary::-webkit-details-marker{display:none}
+  .d{font-variant-numeric:tabular-nums;font-weight:600;font-size:14px}
+  .d small{display:block;font-weight:400;color:var(--muted);font-size:12px}
+  .t{font-weight:600;word-break:break-word;line-height:1.4}
+  .t small{display:block;font-weight:400;color:var(--muted);font-size:13px;margin-top:2px}
+  .chev{color:var(--muted);transition:transform .15s}
+  details[open] .chev{transform:rotate(90deg)}
+  .body{padding:2px 16px 16px 114px;display:grid;grid-template-columns:70px 1fr;gap:8px 12px;margin:0}
+  @media (max-width:600px){details.show>summary{grid-template-columns:70px 1fr auto}.body{padding-left:16px}}
+  .body dt{color:var(--muted);font-size:13px;padding-top:2px}
+  .body dd{margin:0}
+  .chip{display:inline-block;padding:2px 10px;margin:0 4px 4px 0;border-radius:999px;background:var(--soft);font-size:13px;cursor:pointer;border:1px solid transparent}
   .chip:hover{border-color:var(--accent)}
   .chip.on{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
-  .chip.sel{background:var(--accent);color:#fff}
-  .summary{margin:6px 0 12px;padding:10px 12px;border-radius:8px;background:var(--accent-soft)}
-  button{font:inherit;padding:6px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
-  button:hover{border-color:var(--accent)}
-  details.show{background:var(--panel);border:1px solid var(--line);border-radius:10px;margin-bottom:8px}
-  details.show>summary{cursor:pointer;padding:10px 14px;list-style:none;display:flex;gap:10px;align-items:baseline}
-  details.show>summary::-webkit-details-marker{display:none}
-  details.show>summary::before{content:"▶";font-size:11px;color:var(--muted);transition:transform .15s}
-  details.show[open]>summary::before{transform:rotate(90deg)}
-  .d{font-variant-numeric:tabular-nums;color:var(--muted);white-space:nowrap}
-  .t{font-weight:600;word-break:break-word}
-  .tag{font-size:11px;padding:1px 8px;border-radius:999px;background:var(--warn);margin-left:6px;white-space:nowrap}
-  .body{padding:2px 14px 14px 36px;display:grid;grid-template-columns:90px 1fr;gap:6px 10px}
-  .body dt{color:var(--muted);font-size:13px}
-  .body dd{margin:0}
-  .rank{list-style:none;margin:0;padding:0;max-height:520px;overflow:auto}
-  .rank li{display:flex;justify-content:space-between;gap:8px;padding:5px 6px;border-radius:6px;cursor:pointer}
-  .rank li:hover{background:var(--accent-soft)}
-  .rank li.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+  aside .card{position:sticky;top:72px}
+  .seg{display:grid;grid-template-columns:1fr 1fr;background:var(--soft);padding:3px;border-radius:10px;margin-bottom:10px}
+  .seg button{border:0;background:transparent;border-radius:8px;padding:6px}
+  .seg button.on{background:var(--panel);box-shadow:0 1px 3px rgba(0,0,0,.1);font-weight:600}
+  .rank{list-style:none;margin:8px 0 0;padding:0;max-height:560px;overflow:auto}
+  .rank li{display:grid;grid-template-columns:1fr auto;gap:8px;padding:6px 8px;border-radius:8px;cursor:pointer;position:relative;font-size:14px}
+  .rank li:hover{background:var(--soft)}
+  .rank li.on{color:var(--accent);font-weight:600}
+  .rank li i{position:absolute;left:0;bottom:0;height:2px;background:var(--accent);opacity:.35;border-radius:2px}
   .rank .n{font-variant-numeric:tabular-nums;color:var(--muted)}
-  .tabs{display:flex;gap:6px;margin-bottom:8px}
-  .empty{color:var(--muted);padding:24px;text-align:center}
-  footer{max-width:1100px;margin:0 auto;padding:0 16px 40px;color:var(--muted);font-size:13px}
+  .empty{padding:40px;text-align:center;color:var(--muted)}
 </style>
 </head>
 <body>
-<header>
-  <h1>noh ライブ履歴</h1>
-  <div class="sub" id="sub"></div>
-</header>
-<main>
-  <section>
-    <div class="panel">
-      <div class="controls">
-        <div><label for="q">キーワード(イベント名・会場・対バン)</label><input id="q" type="search" placeholder="例: JAMMIN'、SCGT"></div>
-        <div><label for="year">年</label><select id="year"></select></div>
-        <div><label for="era">時代</label><select id="era"><option value="">すべて</option><option value="noh">noh(2018.8〜)</option><option value="jointrally">JointRally(改名前)</option></select></div>
-        <div><label for="pref">地域</label><select id="pref"></select></div>
-        <div><label for="venue">会場</label><select id="venue"></select></div>
+<div class="top" id="top"></div>
+<div class="wrap">
+  <div class="hero">
+    <h1>noh / JointRally ライブ履歴</h1>
+    <p id="sub"></p>
+  </div>
+  <div class="layout">
+    <section>
+      <div class="card">
+        <div class="filters">
+          <div class="wide"><label for="q">キーワード</label><input id="q" type="search" placeholder="イベント名・会場・対バン"></div>
+          <div><label for="era">時代</label><select id="era"><option value="">すべて</option><option value="noh">noh</option><option value="jointrally">JointRally</option></select></div>
+          <div><label for="year">年</label><select id="year"></select></div>
+          <div><label for="pref">地域</label><select id="pref"></select></div>
+          <div><label for="venue">会場</label><select id="venue"></select></div>
+        </div>
+        <div class="sel" id="selected"></div>
+        <div class="bar">
+          <label class="chk"><input type="checkbox" id="up" checked> 今後の予定を含める</label>
+          <select id="order" style="width:auto"><option value="desc">新しい順</option><option value="asc">古い順</option></select>
+          <span class="sp"></span>
+          <button id="open">すべて開く</button><button id="close">閉じる</button><button id="reset">リセット</button>
+        </div>
       </div>
-      <div class="row" id="selected"></div>
-      <div class="row">
-        <label style="display:flex;gap:6px;align-items:center;margin:0"><input type="checkbox" id="up" checked> 今後の予定を含める</label>
-        <label style="display:flex;gap:6px;align-items:center;margin:0">並び順
-          <select id="order" style="width:auto"><option value="desc">新しい順</option><option value="asc">古い順</option></select></label>
-        <button id="open">すべて開く</button>
-        <button id="close">すべて閉じる</button>
-        <button id="reset">条件をリセット</button>
+      <div class="result" id="result"></div>
+      <div id="list"></div>
+    </section>
+    <aside>
+      <div class="card">
+        <div class="seg"><button id="tab-act" class="on">対バン</button><button id="tab-venue">会場</button></div>
+        <input id="rq" type="search" placeholder="ランキング内を検索">
+        <div class="muted" id="rnote" style="font-size:12px;margin-top:8px"></div>
+        <ul class="rank" id="rank"></ul>
       </div>
-    </div>
-    <div id="summary"></div>
-    <div id="list"></div>
-  </section>
-  <aside>
-    <div class="panel">
-      <div class="tabs">
-        <span class="chip on" id="tab-act">対バン回数</span>
-        <span class="chip" id="tab-venue">会場回数</span>
-      </div>
-      <input id="rq" type="search" placeholder="ランキング内を検索" style="margin-bottom:8px">
-      <div class="sub" id="rnote" style="font-size:12px;margin-bottom:6px"></div>
-      <ul class="rank" id="rank"></ul>
-    </div>
-  </aside>
-</main>
-<footer>データは公式サイトのSHOWSと公式Xの告知から作成。回数は「現在の絞り込み条件に合う公演」の中で数えています(今後の予定を含めるチェックにも連動)。</footer>
+    </aside>
+  </div>
+  <footer>回数は現在の絞り込み条件に合う公演の中で数えています。出典と未確認の範囲は「データソース」を参照してください。</footer>
+</div>
 <script src="shows.js"></script>
+<script src="common.js"></script>
 <script>
 (function(){
+  mountNav();
   const S = window.SHOWS.slice();
-  const state = {q:"", year:"", era:"", pref:"", venue:"", acts:new Set(), up:true, order:"desc", tab:"act", rq:""};
+  const P = new URLSearchParams(location.search);
+  const state = {q:P.get("q")||"", year:P.get("year")||"", era:P.get("era")||"", pref:P.get("pref")||"", venue:P.get("venue")||"", acts:new Set(P.getAll("act")), up:true, order:"desc", tab:"act", rq:""};
   const $ = id => document.getElementById(id);
-  const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-  const fmt = d => d.replace(/-/g,"/");
   const uniq = a => [...new Set(a)];
+  const WD = ["日","月","火","水","木","金","土"];
+  const fill = (el,label,vals) => el.innerHTML = '<option value="">'+label+'</option>'+vals.map(v=>'<option>'+esc(v)+'</option>').join("");
+  fill($("year"),"すべて",uniq(S.map(s=>s.date.slice(0,4))).sort().reverse());
+  fill($("pref"),"すべて",uniq(S.map(s=>s.pref)).sort());
+  fill($("venue"),"すべて",uniq(S.map(s=>s.venue)).sort((a,b)=>a.localeCompare(b,"ja")));
+  ["q","year","era","pref","venue"].forEach(k=>$(k).value=state[k]);
 
-  function fillSelect(el, label, values){
-    el.innerHTML = '<option value="">' + label + '</option>' + values.map(v => '<option>' + esc(v) + '</option>').join("");
-  }
-  fillSelect($("year"), "すべて", uniq(S.map(s => s.date.slice(0,4))).sort().reverse());
-  fillSelect($("pref"), "すべて", uniq(S.map(s => s.pref)).sort());
-  fillSelect($("venue"), "すべて", uniq(S.map(s => s.venue)).sort((a,b)=>a.localeCompare(b,"ja")));
-
-  function matches(s){
+  const matches = s => {
     if(!state.up && s.upcoming) return false;
-    if(state.year && s.date.slice(0,4) !== state.year) return false;
-    if(state.era && s.era !== state.era) return false;
-    if(state.pref && s.pref !== state.pref) return false;
-    if(state.venue && s.venue !== state.venue) return false;
+    if(state.year && s.date.slice(0,4)!==state.year) return false;
+    if(state.era && s.era!==state.era) return false;
+    if(state.pref && s.pref!==state.pref) return false;
+    if(state.venue && s.venue!==state.venue) return false;
     for(const a of state.acts) if(!s.acts.includes(a)) return false;
     if(state.q){
-      const hay = (s.title + " " + s.venue + " " + s.pref + " " + s.acts.join(" ") + " " + s.note).toLowerCase();
+      const hay=(s.title+" "+s.venue+" "+s.pref+" "+s.acts.join(" ")+" "+s.note).toLowerCase();
       for(const w of state.q.toLowerCase().split(/\s+/).filter(Boolean)) if(!hay.includes(w)) return false;
     }
     return true;
-  }
-
-  function countBy(list, pick){
-    const m = new Map();
-    list.forEach(s => pick(s).forEach(k => {
-      const e = m.get(k) || {n:0, last:""};
-      e.n++; if(s.date > e.last) e.last = s.date; m.set(k, e);
-    }));
-    return [...m.entries()].map(([k,v]) => ({k, n:v.n, last:v.last}))
-      .sort((a,b) => b.n - a.n || b.last.localeCompare(a.last) || a.k.localeCompare(b.k,"ja"));
-  }
+  };
 
   function render(){
-    const list = S.filter(matches).sort((a,b) => state.order==="desc" ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date));
-    const played = list.filter(s => !s.upcoming).length;
-    $("sub").textContent = "全" + S.filter(s=>!s.upcoming).length + "公演(+今後の予定" + S.filter(s=>s.upcoming).length + "件) / " + S[S.length-1].date.slice(0,4) + "年〜";
+    const list = S.filter(matches).sort((a,b)=>state.order==="desc"?b.date.localeCompare(a.date):a.date.localeCompare(b.date));
+    const pl = played();
+    $("sub").textContent = pl.length+"公演の記録 ・ "+pl[pl.length-1].date.slice(0,4)+"年〜"+pl[0].date.slice(0,4)+"年(JointRally "+pl.filter(s=>s.era==="jointrally").length+" / noh "+pl.filter(s=>s.era==="noh").length+")";
 
-    // 選択中の対バン
-    $("selected").innerHTML = [...state.acts].map(a => '<span class="chip sel" data-act="' + esc(a) + '">' + esc(a) + ' ✕</span>').join("") ||
-      '<span class="sub">対バン相手はリスト内の名前をクリックで絞り込み(複数選択=全員と共演した日)</span>';
+    $("selected").innerHTML = [...state.acts].map(a=>'<span class="tag" data-act="'+esc(a)+'">'+esc(a)+' <b>✕</b></span>').join("");
 
-    // サマリー
-    let sum = '該当 <b>' + list.length + '</b> 公演';
-    if(state.acts.size){
-      sum = [...state.acts].map(esc).join(" ・ ") + ' と対バン: <b>' + list.length + '回</b>';
-      if(list.length) sum += '(初 ' + fmt(list.map(s=>s.date).sort()[0]) + ' / 最新 ' + fmt(list.map(s=>s.date).sort().slice(-1)[0]) + ')';
+    let head = '<strong>'+list.length+'</strong><span class="muted">公演</span>';
+    if(state.acts.size && list.length){
+      const ds=list.map(s=>s.date).sort();
+      head += '<span class="muted">初 '+fmtDate(ds[0])+' ・ 最新 '+fmtDate(ds[ds.length-1])+'</span>';
     }
-    $("summary").innerHTML = '<div class="summary">' + sum + '</div>';
+    $("result").innerHTML = head;
 
-    // 一覧
-    $("list").innerHTML = list.length ? list.map(s => {
-      const time = (s.open || s.start) ? ("OPEN " + (s.open||"-") + " / START " + (s.start||"-")) : "未記載";
-      return '<details class="show"><summary><span class="d">' + fmt(s.date) + '</span><span class="t">_' + esc(s.title) + (s.upcoming ? '<span class="tag">今後の予定</span>' : '') + '</span></summary>' +
-        '<dl class="body">' +
-        '<dt>会場</dt><dd>' + esc(s.venue) + '(' + esc(s.pref) + ')</dd>' +
-        '<dt>対バン</dt><dd>' + s.acts.map(a => '<span class="chip' + (state.acts.has(a) ? ' on' : '') + '" data-act="' + esc(a) + '">' + esc(a) + '</span>').join(" ") + '</dd>' +
-        '<dt>時間</dt><dd>' + esc(time) + '</dd>' +
-        '<dt>料金</dt><dd>' + (s.price ? esc(s.price) : "未記載") + '</dd>' +
-        (s.note ? '<dt>備考</dt><dd>' + esc(s.note) + '</dd>' : '') +
-        '</dl></details>';
+    let lastY="";
+    $("list").innerHTML = list.length ? list.map(s=>{
+      const y=s.date.slice(0,4); let h="";
+      if(y!==lastY){h='<div class="yr">'+y+'</div>';lastY=y}
+      const dt=new Date(s.date+"T00:00:00");
+      const time=(s.open||s.start)?("OPEN "+(s.open||"-")+" / START "+(s.start||"-")):"未記載";
+      const tags=(s.upcoming?'<span class="pill warn">予定</span>':'')+(s.era==="jointrally"?'<span class="pill jr">JointRally</span>':'');
+      return h+'<details class="show"><summary><span class="d">'+fmtDate(s.date.slice(5))+'<small>'+WD[dt.getDay()]+'曜</small></span>'+
+        '<span class="t">'+esc(s.title)+'<small>'+esc(s.venue)+(s.pref!=="愛知"?' ・ '+esc(s.pref):'')+'</small></span><span>'+tags+' <span class="chev">›</span></span></summary>'+
+        '<dl class="body"><dt>対バン</dt><dd>'+(s.acts.length?s.acts.map(a=>'<span class="chip'+(state.acts.has(a)?' on':'')+'" data-act="'+esc(a)+'">'+esc(a)+'</span>').join(""):'<span class="muted">未確認</span>')+'</dd>'+
+        '<dt>時間</dt><dd>'+esc(time)+'</dd><dt>料金</dt><dd>'+(s.price?esc(s.price):'<span class="muted">未記載</span>')+'</dd>'+
+        (s.note?'<dt>備考</dt><dd>'+esc(s.note)+'</dd>':'')+'</dl></details>';
     }).join("") : '<div class="empty">条件に合う公演がありません</div>';
 
-    // ランキング
-    const isAct = state.tab === "act";
-    let rows = isAct ? countBy(list, s => s.acts) : countBy(list, s => [s.venue]);
-    if(state.rq) rows = rows.filter(r => r.k.toLowerCase().includes(state.rq.toLowerCase()));
-    $("rnote").textContent = isAct ? "共演した公演数(現在の絞り込み内)" : "出演した公演数(現在の絞り込み内)";
-    $("rank").innerHTML = rows.map(r => {
-      const on = isAct ? state.acts.has(r.k) : state.venue === r.k;
-      return '<li class="' + (on ? "on" : "") + '" data-' + (isAct ? "act" : "venue") + '="' + esc(r.k) + '"><span>' + esc(r.k) + '</span><span class="n">' + r.n + '回</span></li>';
-    }).join("") || '<li class="sub">該当なし</li>';
-    $("tab-act").classList.toggle("on", isAct);
-    $("tab-venue").classList.toggle("on", !isAct);
+    const isAct=state.tab==="act";
+    let rows=isAct?countBy(list,s=>s.acts):countBy(list,s=>[s.venue]);
+    if(state.rq) rows=rows.filter(r=>r.k.toLowerCase().includes(state.rq.toLowerCase()));
+    const max=rows.length?rows[0].n:1;
+    $("rnote").textContent=isAct?"共演回数(現在の絞り込み内)":"出演回数(現在の絞り込み内)";
+    $("rank").innerHTML=rows.map(r=>{
+      const on=isAct?state.acts.has(r.k):state.venue===r.k;
+      return '<li class="'+(on?"on":"")+'" data-'+(isAct?"act":"venue")+'="'+esc(r.k)+'"><span>'+esc(r.k)+'</span><span class="n">'+r.n+'</span><i style="width:'+Math.round(r.n/max*100)+'%"></i></li>';
+    }).join("")||'<li class="muted">該当なし</li>';
+    $("tab-act").classList.toggle("on",isAct);$("tab-venue").classList.toggle("on",!isAct);
   }
 
-  function toggleAct(a){ state.acts.has(a) ? state.acts.delete(a) : state.acts.add(a); render(); }
-
-  document.addEventListener("click", e => {
-    const t = e.target.closest("[data-act],[data-venue]");
-    if(!t) return;
-    if(t.dataset.act !== undefined){ e.preventDefault(); toggleAct(t.dataset.act); }
-    else if(t.dataset.venue !== undefined){ state.venue = state.venue === t.dataset.venue ? "" : t.dataset.venue; $("venue").value = state.venue; render(); }
+  document.addEventListener("click",e=>{
+    const t=e.target.closest("[data-act],[data-venue]"); if(!t) return;
+    if(t.dataset.act!==undefined){e.preventDefault();const a=t.dataset.act;state.acts.has(a)?state.acts.delete(a):state.acts.add(a);render()}
+    else{state.venue=state.venue===t.dataset.venue?"":t.dataset.venue;$("venue").value=state.venue;render()}
   });
-  $("q").addEventListener("input", e => { state.q = e.target.value.trim(); render(); });
-  $("rq").addEventListener("input", e => { state.rq = e.target.value.trim(); render(); });
-  $("year").addEventListener("change", e => { state.year = e.target.value; render(); });
-  $("era").addEventListener("change", e => { state.era = e.target.value; render(); });
-  $("pref").addEventListener("change", e => { state.pref = e.target.value; render(); });
-  $("venue").addEventListener("change", e => { state.venue = e.target.value; render(); });
-  $("up").addEventListener("change", e => { state.up = e.target.checked; render(); });
-  $("order").addEventListener("change", e => { state.order = e.target.value; render(); });
-  $("tab-act").addEventListener("click", () => { state.tab = "act"; render(); });
-  $("tab-venue").addEventListener("click", () => { state.tab = "venue"; render(); });
-  $("open").addEventListener("click", () => document.querySelectorAll("details.show").forEach(d => d.open = true));
-  $("close").addEventListener("click", () => document.querySelectorAll("details.show").forEach(d => d.open = false));
-  $("reset").addEventListener("click", () => {
-    Object.assign(state, {q:"", year:"", era:"", pref:"", venue:"", up:true, rq:""}); state.acts.clear();
-    ["q","rq"].forEach(i => $(i).value = ""); ["year","era","pref","venue"].forEach(i => $(i).value = ""); $("up").checked = true;
-    render();
-  });
+  const bind=(id,key,ev)=>$(id).addEventListener(ev||"change",e=>{state[key]=e.target.value.trim();render()});
+  bind("q","q","input");bind("rq","rq","input");bind("year","year");bind("era","era");bind("pref","pref");bind("venue","venue");bind("order","order");
+  $("up").addEventListener("change",e=>{state.up=e.target.checked;render()});
+  $("tab-act").onclick=()=>{state.tab="act";render()};$("tab-venue").onclick=()=>{state.tab="venue";render()};
+  $("open").onclick=()=>document.querySelectorAll("details.show").forEach(d=>d.open=true);
+  $("close").onclick=()=>document.querySelectorAll("details.show").forEach(d=>d.open=false);
+  $("reset").onclick=()=>{Object.assign(state,{q:"",year:"",era:"",pref:"",venue:"",up:true,rq:""});state.acts.clear();["q","rq","year","era","pref","venue"].forEach(i=>$(i).value="");$("up").checked=true;render()};
   render();
 })();
 </script>

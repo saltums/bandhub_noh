@@ -1,0 +1,37 @@
+:root{
+  --bg:#f6f7f9; --panel:#fff; --ink:#14161a; --muted:#6a7080; --line:#e6e8ee; --soft:#f0f2f6;
+  --accent:#4f46e5; --accent-ink:#fff; --accent-soft:#eef0ff; --era2:#0ea5a4; --warn:#b45309; --warn-soft:#fff3e0;
+  --r:14px; --shadow:0 1px 2px rgba(20,22,26,.04),0 4px 16px rgba(20,22,26,.04);
+  --h1:#eef0ff; --h2:#c7cbff; --h3:#8f95f5; --h4:#4f46e5; --h5:#3730a3;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0e0f12; --panel:#16181d; --ink:#eceef3; --muted:#8d93a3; --line:#252831; --soft:#1d2027;
+  --accent:#8b8cff; --accent-ink:#0e0f12; --accent-soft:#222447; --era2:#2dd4bf; --warn:#fbbf24; --warn-soft:#2e2614;
+  --shadow:none; --h1:#1d2030; --h2:#2e3270; --h3:#4a50b8; --h4:#7b7ff0; --h5:#b3b5ff;
+}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.65 "Inter",-apple-system,"Hiragino Sans","Noto Sans JP","Yu Gothic",sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+.wrap{max-width:1120px;margin:0 auto;padding:0 20px}
+.top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:saturate(1.4) blur(12px);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;align-items:center;gap:20px;height:56px}
+.brand{font-weight:700;letter-spacing:-.01em;font-size:17px;color:var(--ink)}
+.brand i{font-style:normal;color:var(--accent)}
+nav{display:flex;gap:4px;margin-left:auto}
+nav a{padding:6px 12px;border-radius:999px;color:var(--muted);font-size:14px;font-weight:500}
+nav a:hover{background:var(--soft);text-decoration:none;color:var(--ink)}
+nav a.on{background:var(--ink);color:var(--bg)}
+.hero{padding:36px 0 18px}
+.hero h1{margin:0;font-size:clamp(26px,4.4vw,38px);letter-spacing:-.025em;line-height:1.2}
+.hero p{margin:8px 0 0;color:var(--muted)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:18px}
+.muted{color:var(--muted)}
+.pill{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:999px;background:var(--soft);font-size:12.5px;color:var(--muted);white-space:nowrap}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.jr{background:color-mix(in srgb,var(--era2) 16%,transparent);color:var(--era2)}
+input[type=search],select{width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);font:inherit;outline:none}
+input[type=search]:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+button,.btn{font:inherit;font-size:13.5px;padding:7px 14px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+button:hover{border-color:var(--accent)}
+footer{padding:32px 0 56px;color:var(--muted);font-size:13px}

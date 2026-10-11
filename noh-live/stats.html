@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>分析 | noh / JointRally ライブ履歴</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  .seg{display:inline-grid;grid-auto-flow:column;background:var(--soft);padding:3px;border-radius:10px;margin-top:14px}
+  .seg button{border:0;background:transparent;border-radius:8px;padding:6px 16px}
+  .seg button.on{background:var(--panel);box-shadow:0 1px 3px rgba(0,0,0,.1);font-weight:600}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:18px 0}
+  .kpi{padding:16px 18px}
+  .kpi .v{font-size:32px;font-weight:700;letter-spacing:-.03em;line-height:1.1;font-variant-numeric:tabular-nums}
+  .kpi .l{color:var(--muted);font-size:13px;margin-top:4px}
+  .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-bottom:16px}
+  @media (max-width:860px){.grid{grid-template-columns:1fr}}
+  .card h2{margin:0 0 2px;font-size:16px;letter-spacing:-.01em}
+  .card .cap{color:var(--muted);font-size:12.5px;margin-bottom:14px}
+  .full{grid-column:1/-1}
+  .hb{display:grid;grid-template-columns:minmax(90px,38%) 1fr 34px;gap:8px;align-items:center;padding:3px 0;font-size:13.5px;text-decoration:none;color:inherit}
+  .hb:hover{text-decoration:none;background:var(--soft);border-radius:6px}
+  .hb .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hb .tr{height:10px;background:var(--soft);border-radius:6px;overflow:hidden;display:flex}
+  .hb .tr i{display:block;height:100%;background:var(--accent)}
+  .hb .tr i.jr{background:var(--era2)}
+  .hb .n{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+  .legend{display:flex;gap:14px;font-size:12.5px;color:var(--muted);margin-bottom:8px}
+  .legend s{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px;text-decoration:none}
+  .yc{display:flex;align-items:flex-end;gap:6px;height:190px;padding-top:8px}
+  .yc .col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;min-width:0}
+  .yc .stack{width:100%;max-width:44px;display:flex;flex-direction:column-reverse;border-radius:6px 6px 0 0;overflow:hidden}
+  .yc .stack i{display:block;background:var(--accent)}.yc .stack i.jr{background:var(--era2)}
+  .yc .nv{font-size:12px;font-variant-numeric:tabular-nums;margin-bottom:3px;color:var(--muted)}
+  .yc .yl{font-size:12px;color:var(--muted);margin-top:6px}
+  .scroll{overflow-x:auto}
+  table.hm{border-collapse:separate;border-spacing:3px;font-size:12px;min-width:100%}
+  table.hm th{font-weight:500;color:var(--muted);text-align:center;padding:0 2px;white-space:nowrap}
+  table.hm th.rl{text-align:left;padding-right:8px;max-width:150px;overflow:hidden;text-overflow:ellipsis}
+  table.hm td{height:26px;min-width:30px;border-radius:5px;text-align:center;font-variant-numeric:tabular-nums;background:var(--soft);color:var(--muted)}
+  table.hm td.c1{background:var(--h2);color:#1b1d3a}table.hm td.c2{background:var(--h3);color:#fff}table.hm td.c3{background:var(--h4);color:#fff}table.hm td.c4{background:var(--h5);color:#fff}
+  @media (prefers-color-scheme:dark){table.hm td.c1{color:#e8e9ff}table.hm td.c4{color:#14152b}}
+  .mh td{height:24px}
+  .note{color:var(--muted);font-size:12.5px;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="top" id="top"></div>
+<div class="wrap">
+  <div class="hero">
+    <h1>分析</h1>
+    <p>収集できた公演データの集計です。バーや名前をクリックすると、一覧がその条件で開きます。</p>
+    <div class="seg" id="seg"><button data-e="" class="on">すべて</button><button data-e="noh">noh</button><button data-e="jointrally">JointRally</button></div>
+  </div>
+  <div class="kpis" id="kpis"></div>
+  <div class="grid">
+    <div class="card full"><h2>年別の公演数</h2><div class="cap">時代別の内訳</div><div class="legend"><span><s style="background:var(--era2)"></s>JointRally</span><span><s style="background:var(--accent)"></s>noh</span></div><div class="yc" id="years"></div></div>
+    <div class="card"><h2>対バン回数 TOP15</h2><div class="cap">同じ日に共演した公演数</div><div id="acts"></div></div>
+    <div class="card"><h2>会場 TOP10</h2><div class="cap">出演した公演数</div><div id="venues"></div></div>
+    <div class="card"><h2>地域別</h2><div class="cap">都道府県ごとの公演数</div><div id="prefs"></div></div>
+    <div class="card"><h2>月別の傾向</h2><div class="cap">全期間の月ごとの公演数</div><div id="months"></div></div>
+    <div class="card full"><h2>常連の対バン × 年</h2><div class="cap">3回以上共演したバンド。色が濃いほどその年の共演が多い</div><div class="scroll" id="matrix"></div></div>
+    <div class="card full"><h2>年 × 月のヒートマップ</h2><div class="cap">公演があった月</div><div class="scroll" id="ym"></div></div>
+  </div>
+  <p class="note">集計は収集できた公演のみが対象です。日程が不明な公演や出演者が不明な公演は、対バンの集計に含まれません。詳しくは「データソース」を参照してください。</p>
+  <footer></footer>
+</div>
+<script src="shows.js"></script>
+<script src="common.js"></script>
+<script>
+(function(){
+  mountNav();
+  const $=id=>document.getElementById(id);
+  let era="";
+  const link=(p)=>'index.html?'+p;
+  function bars(el,rows,hrefKey,max){
+    max=max||Math.max(1,...rows.map(r=>r.n));
+    el.innerHTML=rows.map(r=>'<a class="hb" href="'+link(hrefKey+'='+encodeURIComponent(r.k)+(era?'&era='+era:''))+'"><span class="nm" title="'+esc(r.k)+'">'+esc(r.k)+'</span><span class="tr"><i style="width:'+(r.n/max*100)+'%"></i></span><span class="n">'+r.n+'</span></a>').join("")||'<div class="muted">データなし</div>';
+  }
+  function heat(n){return n>=4?"c4":n===3?"c3":n===2?"c2":n===1?"c1":""}
+  function render(){
+    const L=played().filter(s=>!era||s.era===era);
+    const acts=countBy(L,s=>s.acts), venues=countBy(L,s=>[s.venue]);
+    const yrs=[...new Set(L.map(s=>s.date.slice(0,4)))];
+    $("kpis").innerHTML=[[L.length,"公演数"],[acts.length,"共演バンド数"],[venues.length,"会場数"],[new Set(L.map(s=>s.pref)).size,"地域(都道府県)"],[yrs.length,"記録のある年数"]]
+      .map(k=>'<div class="card kpi"><div class="v">'+k[0]+'</div><div class="l">'+k[1]+'</div></div>').join("");
+
+    // 年別
+    const allY=[];const y0=+L.reduce((a,s)=>s.date<a?s.date:a,"9999").slice(0,4),y1=+L.reduce((a,s)=>s.date>a?s.date:a,"0000").slice(0,4);
+    for(let y=y0;y<=y1;y++)allY.push(String(y));
+    const yc=allY.map(y=>({y,jr:L.filter(s=>s.date.startsWith(y)&&s.era==="jointrally").length,nh:L.filter(s=>s.date.startsWith(y)&&s.era==="noh").length}));
+    const ym=Math.max(1,...yc.map(c=>c.jr+c.nh));
+    $("years").innerHTML=yc.map(c=>{const t=c.jr+c.nh;return '<a class="col" href="'+link('year='+c.y)+'" style="text-decoration:none"><span class="nv">'+(t||"")+'</span><span class="stack" style="height:'+(t/ym*150)+'px"><i style="height:'+(c.nh/(t||1)*100)+'%"></i><i class="jr" style="height:'+(c.jr/(t||1)*100)+'%"></i></span><span class="yl">'+c.y.slice(2)+'</span></a>'}).join("");
+
+    bars($("acts"),acts.slice(0,15),"act");
+    bars($("venues"),venues.slice(0,10),"venue");
+    bars($("prefs"),countBy(L,s=>[s.pref]),"pref");
+
+    // 月別
+    const mc=Array.from({length:12},(_,i)=>({k:(i+1)+"月",n:L.filter(s=>+s.date.slice(5,7)===i+1).length}));
+    const mm=Math.max(1,...mc.map(m=>m.n));
+    $("months").innerHTML=mc.map(m=>'<div class="hb" style="grid-template-columns:44px 1fr 34px"><span class="nm">'+m.k+'</span><span class="tr"><i style="width:'+(m.n/mm*100)+'%"></i></span><span class="n">'+m.n+'</span></div>').join("");
+
+    // 対バン × 年
+    const reg=acts.filter(a=>a.n>=3).slice(0,16);
+    $("matrix").innerHTML=reg.length?('<table class="hm"><tr><th></th>'+allY.map(y=>'<th>'+y.slice(2)+'</th>').join("")+'<th>計</th></tr>'+reg.map(a=>
+      '<tr><th class="rl"><a href="'+link('act='+encodeURIComponent(a.k))+'">'+esc(a.k)+'</a></th>'+allY.map(y=>{const n=L.filter(s=>s.date.startsWith(y)&&s.acts.includes(a.k)).length;return '<td class="'+heat(n)+'">'+(n||"")+'</td>'}).join("")+'<th>'+a.n+'</th></tr>').join("")+'</table>'):'<div class="muted">3回以上共演したバンドがありません</div>';
+
+    // 年×月
+    $("ym").innerHTML='<table class="hm mh"><tr><th></th>'+Array.from({length:12},(_,i)=>'<th>'+(i+1)+'月</th>').join("")+'</tr>'+allY.map(y=>'<tr><th class="rl">'+y+'</th>'+Array.from({length:12},(_,i)=>{const n=L.filter(s=>s.date.startsWith(y)&&+s.date.slice(5,7)===i+1).length;return '<td class="'+heat(n)+'">'+(n||"")+'</td>'}).join("")+'</tr>').join("")+'</table>';
+  }
+  $("seg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;era=b.dataset.e;[...$("seg").children].forEach(x=>x.classList.toggle("on",x===b));render()});
+  render();
+})();
+</script>
+</body>
+</html>

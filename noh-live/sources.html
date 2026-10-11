@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>データソース | noh / JointRally ライブ履歴</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  .stack{display:grid;gap:16px;padding-bottom:20px}
+  .card h2{margin:0 0 4px;font-size:17px;letter-spacing:-.01em}
+  .card p{margin:6px 0}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-size:12.5px;color:var(--muted);font-weight:500}
+  tr:last-child td{border-bottom:0}
+  .scroll{overflow-x:auto}
+  ul.plain{margin:6px 0;padding-left:18px}
+  ul.plain li{margin:4px 0}
+  .num{font-variant-numeric:tabular-nums;white-space:nowrap}
+  .tl{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-top:10px}
+  .tl div{border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13px}
+  .tl b{display:block;font-size:20px;letter-spacing:-.02em}
+  .tl .gap{background:var(--warn-soft);border-color:transparent}
+</style>
+</head>
+<body>
+<div class="top" id="top"></div>
+<div class="wrap">
+  <div class="hero">
+    <h1>データソース</h1>
+    <p>どこから集めたデータか、どの期間がどれだけ確かかをまとめています。</p>
+  </div>
+  <div class="stack">
+    <div class="card">
+      <h2>出典</h2>
+      <div class="scroll"><table>
+        <tr><th>出典</th><th>使い方</th><th>対象期間</th><th class="num">公演数</th></tr>
+        <tr><td><a href="https://noh-music.net/ja/shows/" target="_blank" rel="noopener">noh 公式サイト SHOWS</a></td><td>日程・会場・対バン・時間・料金(最も確か)</td><td>2024/05 〜 2026/09</td><td class="num" id="c-off"></td></tr>
+        <tr><td><a href="https://x.com/NOH_JP" target="_blank" rel="noopener">公式X @NOH_JP</a></td><td>過去の告知投稿を検索して拾った(2018年7月までは旧名義 jointrally のアカウント)</td><td>2015/12 〜 2024/04 ・ 今後の予定</td><td class="num" id="c-x"></td></tr>
+        <tr><td><a href="https://noh-music.net/topics/" target="_blank" rel="noopener">noh 公式サイト TOPICS</a></td><td>バンドの改名・メンバー・出演告知の確認</td><td>2018/07 〜</td><td class="num">—</td></tr>
+        <tr><td><a href="https://2youmagazine.com/interview/noh/" target="_blank" rel="noopener">2YOU MAGAZINE インタビュー</a></td><td>「結成12年目に改名」など沿革の確認</td><td>—</td><td class="num">—</td></tr>
+        <tr><td><a href="https://mixi.jp/view_community.pl?id=4505879" target="_blank" rel="noopener">mixi「joint rally」コミュニティ</a></td><td>2009年作成。旧メンバー表記と活動地域(岐阜・名古屋)を確認。ライブ記録は無し</td><td>〜2019</td><td class="num">0</td></tr>
+      </table></div>
+    </div>
+
+    <div class="card">
+      <h2>年ごとの収録数</h2>
+      <p class="muted">黄色は記録が薄い、または見つかっていない年です。</p>
+      <div class="tl" id="tl"></div>
+    </div>
+
+    <div class="card">
+      <h2>確かさの目安</h2>
+      <ul class="plain">
+        <li><b>2024/05 以降</b>: 公式サイトの掲載に基づく。会場・対バン・時間・料金がほぼ揃っています。</li>
+        <li><b>2018/09 〜 2024/04</b>: Xの告知から拾った分。対バンや時間は告知にある範囲のみです。2020〜2023年はコロナ期のこともあり、拾えていない公演がある可能性があります。</li>
+        <li><b>2015/12 〜 2018/07 (JointRally名義)</b>: 同じXアカウントの旧名義時代の告知から。詳細が分からない公演があります。</li>
+        <li><b>2015年より前</b>: 見つかっていません。バンドは2007年頃の結成とされていますが、X・mixi・Web検索では痕跡が出ませんでした。</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>確認できていない項目</h2>
+      <p class="muted">日付の推定、会場や出演者の不明など、補足が必要な公演です。情報があれば <code>shows.js</code> に追記できます。</p>
+      <div class="scroll"><table id="unk"></table></div>
+    </div>
+  </div>
+  <footer>データは個人による収集です。誤りや追加情報があれば shows.js を直接修正してください。</footer>
+</div>
+<script src="shows.js"></script>
+<script src="common.js"></script>
+<script>
+(function(){
+  mountNav();
+  const L=window.SHOWS;
+  document.getElementById("c-off").textContent=L.filter(s=>srcOf(s)==="official").length;
+  document.getElementById("c-x").textContent=L.filter(s=>srcOf(s)==="x").length;
+  const ys=[];for(let y=2015;y<=2026;y++)ys.push(y);
+  document.getElementById("tl").innerHTML=ys.map(y=>{const n=L.filter(s=>s.date.startsWith(String(y))&&!s.upcoming).length;return '<div class="'+(n<3?'gap':'')+'"><b>'+n+'</b>'+y+'年</div>'}).join("");
+  const unk=L.filter(s=>!s.upcoming&&(!s.acts.length||/未確認|推定/.test(s.title+s.note+s.venue)));
+  document.getElementById("unk").innerHTML='<tr><th>日付</th><th>会場 / 企画</th><th>メモ</th></tr>'+unk.map(s=>'<tr><td class="num">'+fmtDate(s.date)+'</td><td>'+esc(s.venue)+' ・ '+esc(s.title)+'</td><td>'+esc(s.note||"出演者が未確認")+'</td></tr>').join("");
+})();
+</script>
+</body>
+</html>
