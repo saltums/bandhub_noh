@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>OGURA the DIVER</title>
+<style>
+  html,body{margin:0;height:100%;background:#0b1026;overflow:hidden;font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+  #wrap{position:fixed;inset:0;display:flex;justify-content:center}
+  #stage{position:relative;width:100%;max-width:480px;height:100%;overflow:hidden}
+  canvas{display:block;width:100%;height:100%;touch-action:none}
+  .hud{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:flex-start;padding:calc(10px + env(safe-area-inset-top)) 14px 0;color:#fff;font-weight:900;text-shadow:0 2px 6px rgba(0,0,0,.6);pointer-events:none}
+  .hud .big{font-size:34px;line-height:1}
+  .hud small{display:block;font-size:11px;opacity:.8;font-weight:700}
+  .back{position:absolute;left:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:5;color:#fff;background:rgba(0,0,0,.45);padding:8px 14px;border-radius:999px;font-size:13px;font-weight:700;text-decoration:none}
+  .panel{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:rgba(10,8,40,.78);color:#fff;text-align:center;padding:20px;z-index:4}
+  .panel h1{margin:0;font-size:26px;letter-spacing:.02em}
+  .panel h1 span{color:#c4b5fd}
+  .btn{background:linear-gradient(135deg,#7c3aed,#db2777);color:#fff;border:0;border-radius:999px;padding:14px 38px;font-size:20px;font-weight:900;box-shadow:0 8px 24px rgba(124,58,237,.5)}
+  .btn:active{transform:scale(.96)}
+  input{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:10px;padding:10px 14px;font-size:16px;text-align:center;width:200px}
+  .rank{width:100%;max-width:300px;background:rgba(255,255,255,.08);border-radius:14px;padding:8px 14px;font-size:14px;text-align:left}
+  .rank div{display:flex;justify-content:space-between;padding:3px 0}
+  .rank b{color:#fde68a}
+  .hide{display:none!important}
+  .res{font-size:56px;font-weight:900;line-height:1;color:#fde68a;text-shadow:0 4px 18px rgba(219,39,119,.6)}
+  .msg{font-size:13px;opacity:.85}
+</style>
+</head>
+<body>
+<div id="wrap"><div id="stage">
+  <canvas id="cv"></canvas>
+  <div class="hud" id="hud"><div><small>のこり</small><span class="big" id="tm">15.0</span></div><div style="text-align:right"><small>深さ</small><span class="big"><span id="dp">0</span><span style="font-size:16px">m</span></span></div></div>
+  <a class="back" href="index.html">← アプリへ戻る</a>
+  <div class="panel" id="start">
+    <h1>OGURA <span>the DIVER</span></h1>
+    <div class="msg">15秒でどこまで潜れる？<br>タップするたび、ぐんと潜る。連打で加速！</div>
+    <input id="nm" maxlength="12" placeholder="なまえ" autocomplete="off">
+    <button class="btn" id="go">スタート</button>
+    <div class="rank" id="rk1"></div>
+  </div>
+  <div class="panel hide" id="end">
+    <div class="msg" id="endmsg">記録</div>
+    <div class="res"><span id="fin">0</span><span style="font-size:22px">m</span></div>
+    <div class="msg" id="best"></div>
+    <button class="btn" id="again">もう一回</button>
+    <div class="rank" id="rk2"></div>
+  </div>
+</div></div>
+<script>
+const SPRITES = {
+  diver0: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 64"><g stroke-linejoin="round" stroke-linecap="round">
+<path d="M26 52 L8 56 L3 60 L14 61 L28 58Z" fill="#2563eb" stroke="#e5e7eb" stroke-width="1"/>
+<path d="M32 54 L16 61 L11 63.5 L22 64 L36 59Z" fill="#7c3aed" stroke="#e5e7eb" stroke-width="1"/>
+<rect x="20" y="31" width="26" height="25" rx="9" fill="#23233a" stroke="#c4b5fd" stroke-width="1.8"/>
+<rect x="23" y="37" width="20" height="8" rx="1.2" fill="#fff" stroke="#111" stroke-width=".8"/>
+<text x="33" y="43.2" font-size="5.6" font-weight="900" text-anchor="middle" fill="#111" font-family="Impact,Arial Black,sans-serif">OGURA</text>
+<text x="33" y="49.6" font-size="3.6" font-weight="900" text-anchor="middle" fill="#fff" font-family="Arial Black,sans-serif">the DIVER</text>
+<g transform="rotate(-22 46 56)"><ellipse cx="46" cy="57" rx="12" ry="6.5" fill="#6d28d9" stroke="#111" stroke-width="1.2"/><path d="M37 57 q5 -5 10 0 t9 -2" fill="none" stroke="#c4b5fd" stroke-width="1.3"/><rect x="55" y="55.2" width="17" height="3" rx="1" fill="#7a4e24" stroke="#111" stroke-width=".8"/><rect x="69" y="53" width="5" height="6.5" rx="1" fill="#3f2a14" stroke="#111" stroke-width=".8"/><path d="M52 56.2 H70 M52 57.6 H70" stroke="#e5e7eb" stroke-width=".5"/></g>
+<path d="M45 35 L56 48" stroke="#23233a" stroke-width="5.5" fill="none"/><path d="M45 35 L56 48" stroke="#c4b5fd" stroke-width=".8" fill="none"/><circle cx="57" cy="48.5" r="3.2" fill="#f2c9a0" stroke="#111" stroke-width=".8"/>
+<ellipse cx="33" cy="33" rx="12" ry="3.4" fill="#cbd5e1" stroke="#111" stroke-width="1"/>
+<circle cx="33" cy="19" r="16" fill="#2b2b38" stroke="#e5e7eb" stroke-width="2"/>
+<path d="M21 12 q6 -9 18 -7" fill="none" stroke="#fff" stroke-opacity=".45" stroke-width="2"/>
+<circle cx="16" cy="19" r="3.4" fill="#cbd5e1" stroke="#111" stroke-width="1"/><path d="M13.6 19 h4.8 M16 16.6 v4.8" stroke="#111" stroke-width="1"/>
+<ellipse cx="35" cy="21" rx="10" ry="9" fill="#f2c9a0" stroke="#111" stroke-width="1"/>
+<path d="M26 24 q9 11 18 0 q-1 5 -9 6 q-8 -1 -9 -6z" fill="#3b2614" stroke="#111" stroke-width=".6"/>
+<rect x="26" y="15.5" width="19" height="9" rx="4" fill="#7dd3fc" fill-opacity=".92" stroke="#111" stroke-width="1.4"/>
+<circle cx="31" cy="20" r="1.5" fill="#111"/><circle cx="40" cy="20" r="1.5" fill="#111"/>
+<path d="M28 17 l5 -1" stroke="#fff" stroke-width="1" stroke-opacity=".8"/>
+</g></svg>`,
+  item_tank: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect x="10" y="7" width="12" height="21" rx="6" fill="#22d3ee" stroke="#0e7490" stroke-width="1.5"/><rect x="13" y="3" width="6" height="5" rx="1" fill="#9ca3af" stroke="#111" stroke-width="1"/><rect x="10" y="14" width="12" height="3" fill="#fff" fill-opacity=".7"/><text x="16" y="25" font-size="6" font-weight="900" text-anchor="middle" fill="#083344" font-family="Arial Black">O₂</text></svg>`,
+  item_string: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><circle cx="16" cy="16" r="12" fill="#1f2937" stroke="#fbbf24" stroke-width="2"/><circle cx="16" cy="16" r="3" fill="#fbbf24"/><path d="M16 4 v8 M16 20 v8 M4 16 h8 M20 16 h8" stroke="#e5e7eb" stroke-width="1.4"/><circle cx="16" cy="16" r="8" fill="none" stroke="#9ca3af" stroke-width="1" stroke-dasharray="2 2"/></svg>`,
+  item_star: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><path d="M16 2 l4 9 l10 1 l-8 7 l3 10 l-9 -6 l-9 6 l3 -10 l-8 -7 l10 -1z" fill="#f472b6" stroke="#fff" stroke-width="1.6"/><circle cx="16" cy="15" r="14" fill="none" stroke="#f9a8d4" stroke-opacity=".5" stroke-width="2"/></svg>`,
+  item_clock: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><circle cx="16" cy="17" r="12" fill="#fff" stroke="#111" stroke-width="2"/><rect x="13" y="2" width="6" height="4" rx="1" fill="#9ca3af" stroke="#111"/><path d="M16 17 V9 M16 17 L22 20" stroke="#dc2626" stroke-width="2.4" stroke-linecap="round"/></svg>`,
+  item_bad: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><circle cx="16" cy="16" r="12" fill="#ef4444" fill-opacity=".55" stroke="#fecaca" stroke-width="2"/><path d="M10 10 L22 22 M22 10 L10 22" stroke="#fff" stroke-width="3" stroke-linecap="round"/></svg>`,
+  ob_cable: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 32"><path d="M0 16 q8 -14 16 0 t16 0 t16 0 t16 0" fill="none" stroke="#111" stroke-width="6"/><path d="M0 16 q8 -14 16 0 t16 0 t16 0 t16 0" fill="none" stroke="#f59e0b" stroke-width="3"/><rect x="54" y="9" width="10" height="14" rx="2" fill="#9ca3af" stroke="#111" stroke-width="1.4"/></svg>`,
+  ob_speaker: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 64"><rect x="3" y="2" width="42" height="60" rx="5" fill="#1f1f2b" stroke="#a78bfa" stroke-width="2"/><circle cx="24" cy="20" r="9" fill="#111" stroke="#6b7280" stroke-width="2"/><circle cx="24" cy="20" r="3" fill="#6b7280"/><circle cx="24" cy="46" r="12" fill="#111" stroke="#6b7280" stroke-width="2"/><circle cx="24" cy="46" r="4" fill="#6b7280"/></svg>`,
+  ob_amp: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 48"><rect x="2" y="2" width="52" height="44" rx="4" fill="#111827" stroke="#ef4444" stroke-width="2"/><rect x="2" y="2" width="52" height="12" rx="3" fill="#374151"/><circle cx="10" cy="8" r="2.4" fill="#fbbf24"/><circle cx="18" cy="8" r="2.4" fill="#fbbf24"/><circle cx="26" cy="8" r="2.4" fill="#fbbf24"/><circle cx="34" cy="8" r="2.4" fill="#fbbf24"/><path d="M8 20 h40 v22 h-40z" fill="#1f2937" stroke="#4b5563"/><path d="M8 26 h40 M8 32 h40 M8 38 h40" stroke="#4b5563" stroke-width="1"/></svg>`,
+  bubble: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" fill="#bae6fd" fill-opacity=".25" stroke="#e0f2fe" stroke-width="1.2"/><path d="M4.5 6 q1 -2 3 -2.4" stroke="#fff" stroke-width="1.2" fill="none"/></svg>`
+};
+
+const SUPABASE_URL='https://bcxwfosythkuwdmkwkkj.supabase.co', SUPABASE_KEY='sb_publishable_M1RuhvoQzl7D6To4FR2NYQ_LvNnA5bW';
+const $=id=>document.getElementById(id);
+const cv=$('cv'), ctx=cv.getContext('2d');
+let W=0,H=0,DPR=1;
+function resize(){DPR=Math.min(window.devicePixelRatio||1,2);const r=cv.getBoundingClientRect();W=r.width;H=r.height;cv.width=W*DPR;cv.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0);ctx.imageSmoothingEnabled=false}
+addEventListener('resize',resize);resize();
+
+const IMG={};let loaded=0;const keys=Object.keys(SPRITES);
+keys.forEach(k=>{const im=new Image();im.onload=()=>{loaded++};im.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(SPRITES[k]);IMG[k]=im});
+
+const LIMIT=15, PXM=26;
+const ITEM_KINDS=[{k:'item_tank',w:3,m:'酸素ボンベ！ +12m'},{k:'item_string',w:4,m:'弦ゲット +4m'},{k:'item_star',w:2,m:'ステージダイブ！ 4秒ダブル'},{k:'item_clock',w:2,m:'時計 +2秒'},{k:'item_bad',w:3,m:'ハウリング… 浮かされた'}];
+const OBS=[{k:'ob_cable',w:78,h:39},{k:'ob_speaker',w:54,h:72},{k:'ob_amp',w:64,h:55}];
+let S=null, state='idle', last=0;
+function reset(){S={t:LIMIT,depth:0,v:0,time:0,objs:[],nextSpawn:6,bubbles:[],dbl:0,inv:0,pop:[],shake:0,taps:0};
+  for(let i=0;i<22;i++)S.bubbles.push({x:Math.random()*W,y:Math.random()*H,r:2+Math.random()*5,s:10+Math.random()*30})}
+function pickItem(){const tot=ITEM_KINDS.reduce((a,b)=>a+b.w,0);let r=Math.random()*tot;for(const it of ITEM_KINDS){if((r-=it.w)<=0)return it}return ITEM_KINDS[0]}
+function spawn(){
+  const lanes=[.2,.5,.8];
+  const x=lanes[Math.floor(Math.random()*3)]*W;
+  if(Math.random()<.42){const it=pickItem();S.objs.push({type:'item',it,k:it.k,x,d:S.depth+34,w:34,h:34})}
+  else{const o=OBS[Math.floor(Math.random()*OBS.length)];S.objs.push({type:'ob',k:o.k,x,d:S.depth+34,w:o.w,h:o.h})}
+  S.nextSpawn=S.depth+34+ (4+Math.random()*7);
+}
+function tap(){
+  if(state!=='play')return;
+  S.taps++;
+  S.v=Math.min(13,S.v+(S.dbl>0?3.4:1.7));
+}
+function popText(txt,x,y,col){S.pop.push({txt,x,y,t:0,col:col||'#fde68a'})}
+function update(dt){
+  S.time+=dt;S.t-=dt;if(S.t<=0){S.t=0;endGame();return}
+  S.v*=Math.exp(-0.85*dt);
+  S.depth=Math.max(0,S.depth+S.v*dt);
+  if(S.dbl>0)S.dbl-=dt;if(S.inv>0)S.inv-=dt;if(S.shake>0)S.shake-=dt;
+  while(S.nextSpawn<S.depth+36&&S.objs.length<30)spawn();
+  const dx=W/2+Math.sin(S.time*2.1)*W*.3, dy=H*.34;
+  S.dx=dx;
+  for(let i=S.objs.length-1;i>=0;i--){
+    const o=S.objs[i];const y=dy+(o.d-S.depth)*PXM;o.y=y;
+    if(y<-120){S.objs.splice(i,1);continue}
+    if(o.hit)continue;
+    const hw=(o.w+60)/2*.7, hh=(o.h+60)/2*.7;
+    if(Math.abs(o.x-dx)<hw&&Math.abs(y-dy)<hh){
+      if(o.type==='item'){o.hit=true;S.objs.splice(i,1);applyItem(o,dx,dy)}
+      else if(S.inv<=0){S.inv=1;S.shake=.3;S.depth=Math.max(0,S.depth-4);S.v*=.15;popText('ガツン！ -4m',dx,dy-40,'#fca5a5')}
+    }
+  }
+  S.pop.forEach(p=>p.t+=dt);S.pop=S.pop.filter(p=>p.t<1.1);
+  S.bubbles.forEach(b=>{b.y-=b.s*dt*(1+S.v*.25);if(b.y<-10){b.y=H+10;b.x=Math.random()*W}});
+  $('tm').textContent=S.t.toFixed(1);$('dp').textContent=Math.floor(S.depth);
+}
+function applyItem(o,x,y){
+  const k=o.k;
+  if(k==='item_tank'){S.depth+=12;S.v=Math.min(13,S.v+4);popText('酸素ボンベ！ +12m',x,y-40)}
+  else if(k==='item_string'){S.depth+=4;popText('弦ゲット +4m',x,y-40)}
+  else if(k==='item_star'){S.dbl=4;popText('ステージダイブ！ 4秒ダブル',x,y-40,'#f9a8d4')}
+  else if(k==='item_clock'){S.t+=2;popText('時計 +2秒',x,y-40,'#a7f3d0')}
+  else{S.depth=Math.max(0,S.depth-6);S.v=0;S.shake=.25;popText('ハウリング… -6m',x,y-40,'#fca5a5')}
+}
+function bgColors(d){
+  const stops=[[0,[56,189,248],[14,116,144]],[40,[14,116,144],[12,74,110]],[90,[30,27,75],[49,22,110]],[150,[76,29,149],[127,29,29]]];
+  let a=stops[0],b=stops[stops.length-1];
+  for(let i=0;i<stops.length-1;i++)if(d>=stops[i][0]&&d<stops[i+1][0]){a=stops[i];b=stops[i+1];var f=(d-a[0])/(b[0]-a[0]);return mix(a,b,f)}
+  return [`rgb(${b[1]})`,`rgb(${b[2]})`];
+}
+function mix(a,b,f){const m=(p,q)=>p.map((v,i)=>Math.round(v+(q[i]-v)*f)).join(',');return [`rgb(${m(a[1],b[1])})`,`rgb(${m(a[2],b[2])})`]}
+function draw(){
+  const d=S?S.depth:0;const [c1,c2]=bgColors(d);
+  const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,c1);g.addColorStop(1,c2);ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  if(!S)return;
+  ctx.save();if(S.shake>0)ctx.translate((Math.random()-.5)*8,(Math.random()-.5)*8);
+  // light rays near the top
+  if(d<60){ctx.globalAlpha=Math.max(0,.25-d/260);ctx.fillStyle='#fff';for(let i=0;i<4;i++){ctx.beginPath();const x=W*(.1+i*.27);ctx.moveTo(x,0);ctx.lineTo(x+40,0);ctx.lineTo(x+120,H);ctx.lineTo(x+40,H);ctx.fill()}ctx.globalAlpha=1}
+  ctx.fillStyle='rgba(224,242,254,.35)';S.bubbles.forEach(b=>{ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,7);ctx.fill()});
+  // neon stage lights deep down
+  if(d>90){ctx.globalAlpha=Math.min(.35,(d-90)/200);ctx.fillStyle='#ef4444';ctx.fillRect(0,0,14,H);ctx.fillStyle='#a855f7';ctx.fillRect(W-14,0,14,H);ctx.globalAlpha=1}
+  // depth markers every 10m
+  const dy=H*.34;ctx.fillStyle='rgba(255,255,255,.35)';ctx.font='bold 11px sans-serif';ctx.textAlign='left';
+  for(let m=Math.floor(d/10)*10;m<d+40;m+=10){const y=dy+(m-d)*PXM;if(m>0){ctx.fillRect(0,y,18,2);ctx.fillText(m+'m',22,y+4)}}
+  S.objs.forEach(o=>{const im=IMG[o.k];if(!im.complete)return;
+    if(o.type==='item'){const s=1+Math.sin(S.time*6+o.d)*.06;ctx.save();ctx.translate(o.x,o.y);ctx.scale(s,s);ctx.drawImage(im,-o.w/2,-o.h/2,o.w,o.h);ctx.restore()}
+    else ctx.drawImage(im,o.x-o.w/2,o.y-o.h/2,o.w,o.h)});
+  // diver
+  const x=S.dx||W/2, y=dy, im=IMG.diver0, w=120, h=w*64/80;
+  if(!(S.inv>0&&Math.floor(S.time*20)%2)){
+    ctx.save();ctx.translate(x,y);
+    ctx.rotate(.3+Math.min(S.v,12)*.012+Math.sin(S.time*5)*.05);
+    if(S.dbl>0){ctx.shadowColor='#f472b6';ctx.shadowBlur=22}
+    ctx.drawImage(im,-w/2,-h/2,w,h);ctx.restore();
+  }
+  // popups
+  ctx.textAlign='center';ctx.font='900 16px sans-serif';
+  S.pop.forEach(p=>{ctx.globalAlpha=1-p.t/1.1;ctx.fillStyle='#000';ctx.fillText(p.txt,p.x+1,p.y-p.t*40+1);ctx.fillStyle=p.col;ctx.fillText(p.txt,p.x,p.y-p.t*40)});ctx.globalAlpha=1;
+  if(S.dbl>0){ctx.fillStyle='rgba(244,114,182,.9)';ctx.font='900 14px sans-serif';ctx.fillText('★ DOUBLE '+S.dbl.toFixed(1)+'s',W/2,H-24)}
+  ctx.restore();
+}
+function loop(ts){
+  const dt=Math.min(.05,(ts-last)/1000||0);last=ts;
+  if(state==='play')update(dt);
+  draw();requestAnimationFrame(loop)
+}
+async function api(path,opt){const r=await fetch(SUPABASE_URL+'/rest/v1/'+path,Object.assign({headers:{apikey:SUPABASE_KEY,Authorization:'Bearer '+SUPABASE_KEY,'Content-Type':'application/json'}},opt));if(!r.ok)throw new Error(r.status);return r}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+async function ranking(el,mine){
+  el.innerHTML='<div><span>ランキング読み込み中…</span></div>';
+  try{
+    const rows=await (await api('game_scores?select=name,depth&order=depth.desc&limit=200')).json();
+    const best=new Map();rows.forEach(r=>{if(!best.has(r.name))best.set(r.name,Number(r.depth))});
+    const top=[...best.entries()].slice(0,8);
+    el.innerHTML='<div style="opacity:.7;font-size:12px"><span>🏆 メンバーランキング(各自のベスト)</span></div>'+(top.map((r,i)=>'<div'+(r[0]===mine?' style="color:#fde68a"':'')+'><span>'+(i+1)+'. '+esc(r[0])+'</span><b>'+r[1].toFixed(0)+'m</b></div>').join('')||'<div><span>まだ記録がありません</span></div>');
+  }catch(e){el.innerHTML='<div><span>ランキングを取得できませんでした</span></div>'}
+}
+function myName(){return ($('nm').value||'').trim().slice(0,12)}
+function bestLocal(){return Number(localStorage.getItem('bh_game_best')||0)}
+function startGame(){
+  const n=myName();if(!n){$('nm').focus();$('nm').style.borderColor='#f87171';return}
+  try{localStorage.setItem('bh_game_name',n)}catch(e){}
+  reset();state='play';$('start').classList.add('hide');$('end').classList.add('hide');$('hud').classList.remove('hide');
+}
+async function endGame(){
+  state='over';const depth=Math.floor(S.depth*10)/10;
+  $('fin').textContent=Math.floor(depth);
+  let nb=false;const b=bestLocal();if(depth>b){nb=true;try{localStorage.setItem('bh_game_best',String(depth))}catch(e){}}
+  $('endmsg').textContent=nb?'🎉 自己ベスト更新！':'タイムアップ！';
+  $('best').textContent='自己ベスト '+Math.floor(Math.max(b,depth))+'m ／ タップ '+S.taps+'回';
+  $('end').classList.remove('hide');
+  const n=myName();
+  try{await api('game_scores',{method:'POST',headers:{apikey:SUPABASE_KEY,Authorization:'Bearer '+SUPABASE_KEY,'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({name:n,depth})})}catch(e){}
+  ranking($('rk2'),n);
+}
+cv.addEventListener('pointerdown',e=>{e.preventDefault();tap()});
+addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();tap()}});
+$('go').addEventListener('click',startGame);
+$('again').addEventListener('click',()=>{$('end').classList.add('hide');reset();state='play'});
+try{$('nm').value=localStorage.getItem('bh_game_name')||''}catch(e){}
+$('nm').addEventListener('keydown',e=>{if(e.key==='Enter')startGame()});
+reset();state='idle';ranking($('rk1'),myName());
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
