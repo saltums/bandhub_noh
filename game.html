@@ -107,9 +107,11 @@ const NOTES=[41.2,49,55,61.7,73.4,82.4,98,110,123.5,146.8,164.8];
 function audioOn(){try{if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume()}catch(e){}}
 function tone(f,dur,type,vol,cut){if(!AC||muted)return;try{const t=AC.currentTime,o=AC.createOscillator(),g=AC.createGain(),fl=AC.createBiquadFilter();o.type=type||'sawtooth';o.frequency.value=f;fl.type='lowpass';fl.frequency.setValueAtTime(cut||900,t);fl.frequency.exponentialRampToValueAtTime(180,t+dur);g.gain.setValueAtTime(vol||.28,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);o.connect(fl);fl.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+dur+.02)}catch(e){}}
 function noteUp(i){const f=NOTES[Math.min(i,NOTES.length-1)];tone(f*2,.32,'sawtooth',.26,1400);tone(f*4,.12,'triangle',.07,2400)}
+function goldRiff(){if(!AC||muted)return;const n=[41.2,49,55,61.7,73.4,82.4,98,110,123.5,146.8,164.8,196,220];n.forEach((f,i)=>setTimeout(()=>{tone(f*2,.2,'sawtooth',.3,1800);tone(f*4,.08,'triangle',.08,3000)},i*115));setTimeout(()=>{[82.4,123.5,164.8,247].forEach(f=>tone(f,1.1,'sawtooth',.28,1600));tone(41.2,1.2,'square',.25,300)},n.length*115)}
 function thud(){tone(55,.25,'square',.3,300);tone(40,.35,'sawtooth',.25,200)}
 function blip(){tone(880,.1,'triangle',.12,3000)}
 function buzz(ms){try{if(navigator.vibrate)navigator.vibrate(ms)}catch(e){}}
+const GOLD_RATE=.5; // テスト用に高め(本番は .08 くらい)
 const LIMIT=15, PXM=26;
 const ITEM_KINDS=[{k:'item_tank',w:3,m:'酸素ボンベ！ +12m'},{k:'item_string',w:4,m:'弦ゲット +4m'},{k:'item_star',w:2,m:'ステージダイブ！ 4秒ダブル'},{k:'item_clock',w:2,m:'時計 +2秒'},{k:'item_bad',w:3,m:'ハウリング… 浮かされた'}];
 const OBS=[{k:'ob_cable',w:78,h:39},{k:'ob_speaker',w:54,h:72},{k:'ob_amp',w:64,h:55}];
@@ -119,7 +121,7 @@ function reset(){S={t:LIMIT,depth:0,v:0,time:0,objs:[],nextSpawn:6,bubbles:[],db
 function pickItem(){const tot=ITEM_KINDS.reduce((a,b)=>a+b.w,0);let r=Math.random()*tot;for(const it of ITEM_KINDS){if((r-=it.w)<=0)return it}return ITEM_KINDS[0]}
 function spawn(){
   const x=W*(.12+Math.random()*.76);
-  if(Math.random()<.08){S.objs.push({type:'item',it:{k:'item_gold'},k:'item_gold',x,d:S.depth+34,w:52,h:52})}
+  if(Math.random()<GOLD_RATE){S.objs.push({type:'item',it:{k:'item_gold'},k:'item_gold',x,d:S.depth+34,w:52,h:52})}
   else if(Math.random()<.42){const it=pickItem();S.objs.push({type:'item',it,k:it.k,x,d:S.depth+34,w:it.k==='item_string'?38:34,h:it.k==='item_string'?47:34})}
   else{const o=OBS[Math.floor(Math.random()*OBS.length)];S.objs.push({type:'ob',k:o.k,x,d:S.depth+34,w:o.w,h:o.h})}
   S.nextSpawn=S.depth+34+ (4+Math.random()*7);
@@ -130,6 +132,7 @@ function update(dt){
   let vt=5+S.time*.18;if(S.dbl>0)vt*=2;if(S.slow>0)vt*=.3;
   S.v+=(vt-S.v)*Math.min(1,dt*4);
   S.depth=Math.max(0,S.depth+S.v*dt);
+  if(S.rush>0){const d=Math.min(S.rush,dt);S.depth+=100*d/S.rushT;S.rush-=dt}
   S.dx+=(S.tx-S.dx)*Math.min(1,dt*10);
   if(S.slow>0)S.slow-=dt;if(S.dbl>0)S.dbl-=dt;if(S.inv>0)S.inv-=dt;if(S.shake>0)S.shake-=dt;
   while(S.nextSpawn<S.depth+36&&S.objs.length<30)spawn();
@@ -156,7 +159,7 @@ function applyItem(o,x,y){
   sparkle();noteUp(S.combo);S.combo++;S.maxCombo=Math.max(S.maxCombo,S.combo);buzz(15);
   const cb=S.combo>=3?Math.min(S.combo-2,5):0;S.depth+=cb;
   const cbTxt=S.combo>=2?'  COMBO x'+S.combo+(cb?' +'+cb+'m':''):'';
-  if(k==='item_gold'){S.depth+=100;S.t+=3;S.dbl=Math.max(S.dbl,3);S.shake=.5;S.flash=.8;for(let i=0;i<40;i++){const a=Math.random()*6.28;S.spark.push({x,y,vx:Math.cos(a)*(80+Math.random()*220),vy:Math.sin(a)*(80+Math.random()*220),t:0})}buzz(120);popText('★ 伝説のゴールドベース！ +100m ＆ +3秒 ★',W/2,y-60,'#fde047');return}
+  if(k==='item_gold'){S.rush=1.7;S.rushT=1.7;S.t+=3;S.inv=Math.max(S.inv,1.9);S.shake=1.7;S.slow=0;S.dbl=0;for(let n=0;n<60;n++){const a=Math.random()*6.28;S.spark.push({x,y,vx:Math.cos(a)*(80+Math.random()*260),vy:Math.sin(a)*(80+Math.random()*260),t:0})}buzz([60,40,60,40,200]);goldRiff();popText('★ GOLD DIVE!! +100m ＆ +3秒 ★',W/2,y-70,'#fde047');return}
   if(k==='item_tank'){S.depth+=12;popText('酸素ボンベ！ +12m'+cbTxt,x,y-40)}
   else if(k==='item_string'){S.depth+=4;popText('弦ゲット +4m'+cbTxt,x,y-40)}
   else if(k==='item_star'){S.dbl=4;popText('ステージダイブ！ 4秒ダブル'+cbTxt,x,y-40,'#f9a8d4')}
@@ -212,6 +215,15 @@ function draw(){
   S.pop.forEach(p=>{ctx.globalAlpha=1-p.t/1.1;ctx.fillStyle='#000';ctx.fillText(p.txt,p.x+1,p.y-p.t*40+1);ctx.fillStyle=p.col;ctx.fillText(p.txt,p.x,p.y-p.t*40)});ctx.globalAlpha=1;
   if(S.combo>=2){ctx.fillStyle='#fde68a';ctx.font='900 20px sans-serif';ctx.textAlign='center';ctx.fillText('COMBO x'+S.combo,W/2,H-60)}
   if(S.dbl>0){ctx.fillStyle='rgba(244,114,182,.9)';ctx.font='900 14px sans-serif';ctx.fillText('★ DOUBLE '+S.dbl.toFixed(1)+'s',W/2,H-24)}
+  if(S.rush>0){const p=S.rush/S.rushT;
+    ctx.save();ctx.globalCompositeOperation='lighter';
+    const g=ctx.createRadialGradient(W/2,H*.34,20,W/2,H*.34,H*.8);g.addColorStop(0,'rgba(253,224,71,'+(.28*p)+')');g.addColorStop(1,'rgba(251,146,60,0)');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle='rgba(255,243,176,'+(.25+.3*p)+')';ctx.lineWidth=2;
+    for(let n=0;n<26;n++){const x=(n*97.3+S.time*13)%W,l=90+((n*53)%140),y=((S.time*1400+n*211)%(H+l))-l;ctx.beginPath();ctx.moveTo(x,H-y);ctx.lineTo(x,H-y-l);ctx.stroke()}
+    ctx.restore();
+    if(S.rushT-S.rush<.1){ctx.fillStyle='rgba(255,250,200,'+(1-(S.rushT-S.rush)/.1)*.55+')';ctx.fillRect(0,0,W,H)}
+    ctx.save();ctx.textAlign='center';ctx.font='900 '+(34+Math.sin(S.time*30)*3)+'px sans-serif';ctx.lineWidth=5;ctx.strokeStyle='#7c2d12';ctx.fillStyle='#fde047';ctx.globalAlpha=Math.min(1,p*2);
+    ctx.strokeText('GOLD DIVE!!',W/2,H*.62);ctx.fillText('GOLD DIVE!!',W/2,H*.62);ctx.restore()}
   ctx.restore();
 }
 function loop(ts){
@@ -261,7 +273,7 @@ $('nm').addEventListener('keydown',e=>{if(e.key==='Enter')startGame()});
 (function(){
   const rows=[
     ['h','✨ 光るもの = 取る'],
-    ['item_gold','good','ゴールドベース(超レア!)','+100m ＆ +3秒。出たらラッキー'],
+    ['item_gold','good','ゴールドベース(超レア!)','一気に +100m ＆ +3秒。派手に潜る!'],
     ['item_tank','good','酸素ボンベ','+12m 一気に潜る'],
     ['item_string','good','ベースの弦','+4m'],
     ['item_star','good','ステージダイブ','4秒間、2倍の速さ'],
