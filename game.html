@@ -34,7 +34,7 @@
   <a class="back" href="index.html">← アプリへ戻る</a>
   <div class="panel" id="start">
     <h1>OGURA <span>the DIVER</span></h1>
-    <div class="msg">15秒でどこまで潜れる？<br>タップするたび、ぐんと潜る。連打で加速！</div>
+    <div class="msg">15秒でどこまで潜れる？<br>指をスライドして左右に動かし、<br>障害物をよけてアイテムを取ろう！</div>
     <input id="nm" maxlength="12" placeholder="なまえ" autocomplete="off">
     <button class="btn" id="go">スタート</button>
     <div class="rank" id="rk1"></div>
@@ -93,30 +93,25 @@ const LIMIT=15, PXM=26;
 const ITEM_KINDS=[{k:'item_tank',w:3,m:'酸素ボンベ！ +12m'},{k:'item_string',w:4,m:'弦ゲット +4m'},{k:'item_star',w:2,m:'ステージダイブ！ 4秒ダブル'},{k:'item_clock',w:2,m:'時計 +2秒'},{k:'item_bad',w:3,m:'ハウリング… 浮かされた'}];
 const OBS=[{k:'ob_cable',w:78,h:39},{k:'ob_speaker',w:54,h:72},{k:'ob_amp',w:64,h:55}];
 let S=null, state='idle', last=0;
-function reset(){S={t:LIMIT,depth:0,v:0,time:0,objs:[],nextSpawn:6,bubbles:[],dbl:0,inv:0,pop:[],shake:0,taps:0};
+function reset(){S={t:LIMIT,depth:0,v:0,time:0,objs:[],nextSpawn:6,bubbles:[],dbl:0,inv:0,slow:0,pop:[],shake:0,items:0,tx:W/2,dx:W/2};
   for(let i=0;i<22;i++)S.bubbles.push({x:Math.random()*W,y:Math.random()*H,r:2+Math.random()*5,s:10+Math.random()*30})}
 function pickItem(){const tot=ITEM_KINDS.reduce((a,b)=>a+b.w,0);let r=Math.random()*tot;for(const it of ITEM_KINDS){if((r-=it.w)<=0)return it}return ITEM_KINDS[0]}
 function spawn(){
-  const lanes=[.2,.5,.8];
-  const x=lanes[Math.floor(Math.random()*3)]*W;
+  const x=W*(.12+Math.random()*.76);
   if(Math.random()<.42){const it=pickItem();S.objs.push({type:'item',it,k:it.k,x,d:S.depth+34,w:34,h:34})}
   else{const o=OBS[Math.floor(Math.random()*OBS.length)];S.objs.push({type:'ob',k:o.k,x,d:S.depth+34,w:o.w,h:o.h})}
   S.nextSpawn=S.depth+34+ (4+Math.random()*7);
 }
-function tap(){
-  if(state!=='play')return;
-  S.taps++;
-  S.v=Math.min(13,S.v+(S.dbl>0?3.4:1.7));
-}
 function popText(txt,x,y,col){S.pop.push({txt,x,y,t:0,col:col||'#fde68a'})}
 function update(dt){
   S.time+=dt;S.t-=dt;if(S.t<=0){S.t=0;endGame();return}
-  S.v*=Math.exp(-0.85*dt);
+  let vt=5+S.time*.18;if(S.dbl>0)vt*=2;if(S.slow>0)vt*=.3;
+  S.v+=(vt-S.v)*Math.min(1,dt*4);
   S.depth=Math.max(0,S.depth+S.v*dt);
-  if(S.dbl>0)S.dbl-=dt;if(S.inv>0)S.inv-=dt;if(S.shake>0)S.shake-=dt;
+  S.dx+=(S.tx-S.dx)*Math.min(1,dt*10);
+  if(S.slow>0)S.slow-=dt;if(S.dbl>0)S.dbl-=dt;if(S.inv>0)S.inv-=dt;if(S.shake>0)S.shake-=dt;
   while(S.nextSpawn<S.depth+36&&S.objs.length<30)spawn();
-  const dx=W/2+Math.sin(S.time*2.1)*W*.3, dy=H*.34;
-  S.dx=dx;
+  const dx=S.dx, dy=H*.34;
   for(let i=S.objs.length-1;i>=0;i--){
     const o=S.objs[i];const y=dy+(o.d-S.depth)*PXM;o.y=y;
     if(y<-120){S.objs.splice(i,1);continue}
@@ -124,7 +119,7 @@ function update(dt){
     const hw=(o.w+60)/2*.7, hh=(o.h+60)/2*.7;
     if(Math.abs(o.x-dx)<hw&&Math.abs(y-dy)<hh){
       if(o.type==='item'){o.hit=true;S.objs.splice(i,1);applyItem(o,dx,dy)}
-      else if(S.inv<=0){S.inv=1;S.shake=.3;S.depth=Math.max(0,S.depth-4);S.v*=.15;popText('ガツン！ -4m',dx,dy-40,'#fca5a5')}
+      else if(S.inv<=0){S.inv=1;S.slow=.9;S.shake=.3;S.depth=Math.max(0,S.depth-4);popText('ガツン！ -4m',dx,dy-40,'#fca5a5')}
     }
   }
   S.pop.forEach(p=>p.t+=dt);S.pop=S.pop.filter(p=>p.t<1.1);
@@ -132,12 +127,12 @@ function update(dt){
   $('tm').textContent=S.t.toFixed(1);$('dp').textContent=Math.floor(S.depth);
 }
 function applyItem(o,x,y){
-  const k=o.k;
-  if(k==='item_tank'){S.depth+=12;S.v=Math.min(13,S.v+4);popText('酸素ボンベ！ +12m',x,y-40)}
+  const k=o.k;S.items++;
+  if(k==='item_tank'){S.depth+=12;popText('酸素ボンベ！ +12m',x,y-40)}
   else if(k==='item_string'){S.depth+=4;popText('弦ゲット +4m',x,y-40)}
   else if(k==='item_star'){S.dbl=4;popText('ステージダイブ！ 4秒ダブル',x,y-40,'#f9a8d4')}
   else if(k==='item_clock'){S.t+=2;popText('時計 +2秒',x,y-40,'#a7f3d0')}
-  else{S.depth=Math.max(0,S.depth-6);S.v=0;S.shake=.25;popText('ハウリング… -6m',x,y-40,'#fca5a5')}
+  else{S.depth=Math.max(0,S.depth-6);S.slow=.9;S.shake=.25;popText('ハウリング… -6m',x,y-40,'#fca5a5')}
 }
 function bgColors(d){
   const stops=[[0,[56,189,248],[14,116,144]],[40,[14,116,144],[12,74,110]],[90,[30,27,75],[49,22,110]],[150,[76,29,149],[127,29,29]]];
@@ -163,10 +158,10 @@ function draw(){
     if(o.type==='item'){const s=1+Math.sin(S.time*6+o.d)*.06;ctx.save();ctx.translate(o.x,o.y);ctx.scale(s,s);ctx.drawImage(im,-o.w/2,-o.h/2,o.w,o.h);ctx.restore()}
     else ctx.drawImage(im,o.x-o.w/2,o.y-o.h/2,o.w,o.h)});
   // diver
-  const x=S.dx||W/2, y=dy, im=IMG.diver0, w=120, h=w*64/80;
+  const x=S.dx, y=dy, im=IMG.diver0, w=120, h=w*64/80;
   if(!(S.inv>0&&Math.floor(S.time*20)%2)){
     ctx.save();ctx.translate(x,y);
-    ctx.rotate(.3+Math.min(S.v,12)*.012+Math.sin(S.time*5)*.05);
+    ctx.rotate(.15+(S.tx-S.dx)*.0015+Math.sin(S.time*5)*.04);
     if(S.dbl>0){ctx.shadowColor='#f472b6';ctx.shadowBlur=22}
     ctx.drawImage(im,-w/2,-h/2,w,h);ctx.restore();
   }
@@ -204,14 +199,16 @@ async function endGame(){
   $('fin').textContent=Math.floor(depth);
   let nb=false;const b=bestLocal();if(depth>b){nb=true;try{localStorage.setItem('bh_game_best',String(depth))}catch(e){}}
   $('endmsg').textContent=nb?'🎉 自己ベスト更新！':'タイムアップ！';
-  $('best').textContent='自己ベスト '+Math.floor(Math.max(b,depth))+'m ／ タップ '+S.taps+'回';
+  $('best').textContent='自己ベスト '+Math.floor(Math.max(b,depth))+'m ／ アイテム '+S.items+'個';
   $('end').classList.remove('hide');
   const n=myName();
   try{await api('game_scores',{method:'POST',headers:{apikey:SUPABASE_KEY,Authorization:'Bearer '+SUPABASE_KEY,'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({name:n,depth})})}catch(e){}
   ranking($('rk2'),n);
 }
-cv.addEventListener('pointerdown',e=>{e.preventDefault();tap()});
-addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();tap()}});
+function setTx(e){if(state!=='play')return;const r=cv.getBoundingClientRect();S.tx=Math.max(24,Math.min(W-24,e.clientX-r.left))}
+cv.addEventListener('pointerdown',e=>{e.preventDefault();try{cv.setPointerCapture(e.pointerId)}catch(_){}setTx(e)});
+cv.addEventListener('pointermove',e=>{e.preventDefault();setTx(e)});
+addEventListener('keydown',e=>{if(state!=='play')return;const st=W*.12;if(e.code==='ArrowLeft')S.tx=Math.max(24,S.tx-st);if(e.code==='ArrowRight')S.tx=Math.min(W-24,S.tx+st)});
 $('go').addEventListener('click',startGame);
 $('again').addEventListener('click',()=>{$('end').classList.add('hide');reset();state='play'});
 try{$('nm').value=localStorage.getItem('bh_game_name')||''}catch(e){}
