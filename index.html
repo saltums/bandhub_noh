@@ -1823,19 +1823,23 @@
           '次のライブのセットリストを、過去の傾向から提案して',
           '今年出た会場と回数を教えて',
           '直近のライブの対バンを教えて',
-          '次のライブに対バンを追加したい'
+          '次のライブに対バンを追加したい',
+          '🔮 今日のインストロックバンド占い',
+          '🎰 インストバンドガチャを引く'
         ];
         const AI_FIELDS = {
           live: ['日にち', 'ライブ場所', 'ライブタイトル', '制限時間(分)', '備考', 'チケット代', 'ステータス', '参加メンバー', '対バン', '開場', '開演', '料金'],
           song: ['曲名', '時間(分)', '時間(秒)', 'BPM', '備考', 'カポ', 'リンクURL', '参加メンバー'],
           studio: ['日にち', '場所', '参加メンバー', '備考', '開始時間', '終了時間'],
-          guest: ['名前', '人数', 'チケット不要フラグ', '合計金額']
+          guest: ['名前', '人数', 'チケット不要フラグ', '合計金額'],
+          rare: ['名前', '地域', 'ジャンル', '活動期間', '概要', '代表作']
         };
         const AI_KIND = {
           update_live: ['ライブを変更', 'lives', 'live'], insert_live: ['ライブを追加', 'lives', 'live'],
           update_song: ['曲を変更', 'songs', 'song'], insert_song: ['曲を追加', 'songs', 'song'],
           update_studio: ['スタジオを変更', 'studios', 'studio'], insert_studio: ['スタジオを追加', 'studios', 'studio'],
-          add_guest: ['ゲストを追加', 'lives', 'guest'], set_setlist: ['セットリストを設定', 'lives', 'setlist']
+          add_guest: ['ゲストを追加', 'lives', 'guest'], set_setlist: ['セットリストを設定', 'lives', 'setlist'],
+          insert_rare_band: ['レアバンドを登録', '', 'rare']
         };
         const pick = (values, allowed) => Object.fromEntries(Object.entries(values || {}).filter(([k]) => allowed.includes(k)));
         const showVal = (v) => Array.isArray(v) ? v.join('、') : (v == null ? '' : String(v));
@@ -1883,6 +1887,15 @@
                 if (!db.value.lives.some(l => l.ID === c.id)) throw new Error('対象のライブが見つかりません');
                 const ids = (c.values.songIds || []).filter(id => id === '__MC__' || db.value.songs.some(s => s.ID === id));
                 await callApi('saveSetlist', { liveId: c.id, setlist: ids });
+              } else if (group === 'rare') {
+                const v = pick(c.values, AI_FIELDS.rare);
+                if (!v.名前) throw new Error('バンド名がありません');
+                const r = await fetch(`${SUPABASE_URL}/rest/v1/inst_bands`, {
+                  method: 'POST',
+                  headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'resolution=ignore-duplicates,return=minimal' },
+                  body: JSON.stringify({ ...v, レア度: 3 })
+                });
+                if (!r.ok) throw new Error('登録に失敗しました');
               } else if (group === 'guest') {
                 if (!db.value.lives.some(l => l.ID === c.id)) throw new Error('対象のライブが見つかりません');
                 await callApi('saveGuest', { ...pick(c.values, AI_FIELDS.guest), ライブID: c.id });
