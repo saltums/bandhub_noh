@@ -1208,6 +1208,12 @@
                 <div class="max-w-[88%]">
                   <div :class="m.role === 'user' ? 'bg-indigo-600 text-white rounded-2xl rounded-br-sm' : 'bg-gray-100 text-gray-800 rounded-2xl rounded-bl-sm'"
                     class="px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words">{{ m.text }}</div>
+                  <div v-for="b in (m.bands || [])" :key="b.name" class="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
+                    <span class="font-bold text-gray-600 mr-1"><i class="fas fa-guitar mr-1 text-fuchsia-500"></i>{{ b.name }}</span>
+                    <a v-if="b.url" :href="b.url" target="_blank" rel="noopener" class="px-2.5 py-1 rounded-full bg-fuchsia-600 text-white font-bold">公式/登録リンク</a>
+                    <a :href="b.yt" target="_blank" rel="noopener" class="px-2.5 py-1 rounded-full bg-red-500 text-white font-bold"><i class="fab fa-youtube mr-1"></i>YouTube</a>
+                    <a :href="b.sp" target="_blank" rel="noopener" class="px-2.5 py-1 rounded-full bg-emerald-600 text-white font-bold"><i class="fab fa-spotify mr-1"></i>Spotify</a>
+                  </div>
                   <div v-if="m.proposal" class="mt-2 bg-white border-2 border-fuchsia-200 rounded-2xl p-3 space-y-2">
                     <p class="text-xs font-black text-fuchsia-600">変更案: {{ m.proposal.summary }}</p>
                     <div v-for="(c, ci) in m.proposal.changes" :key="ci" class="bg-fuchsia-50/50 rounded-xl p-2.5 text-xs">
@@ -1832,7 +1838,7 @@
           song: ['曲名', '時間(分)', '時間(秒)', 'BPM', '備考', 'カポ', 'リンクURL', '参加メンバー'],
           studio: ['日にち', '場所', '参加メンバー', '備考', '開始時間', '終了時間'],
           guest: ['名前', '人数', 'チケット不要フラグ', '合計金額'],
-          rare: ['名前', '地域', 'ジャンル', '活動期間', '概要', '代表作']
+          rare: ['名前', '地域', 'ジャンル', '活動期間', '概要', '代表作', 'リンク']
         };
         const AI_KIND = {
           update_live: ['ライブを変更', 'lives', 'live'], insert_live: ['ライブを追加', 'lives', 'live'],
@@ -1858,6 +1864,28 @@
           return { title, rows };
         };
         const scrollAi = () => nextTick(() => { const el = aiScroll.value; if (el) el.scrollTop = el.scrollHeight; });
+        let bandCache = null;
+        const loadBandNames = async () => {
+          if (bandCache) return bandCache;
+          try {
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/inst_bands?select=名前,リンク&limit=2000`, { headers: { apikey: SUPABASE_KEY } });
+            const rows = r.ok ? await r.json() : [];
+            const m = new Map(rows.map(x => [x.名前, x.リンク || '']));
+            (db.value.lives || []).forEach(l => (Array.isArray(l.対バン) ? l.対バン : []).forEach(a => { if (a && a !== 'noh' && !m.has(a)) m.set(a, ''); }));
+            bandCache = m;
+          } catch (e) { bandCache = new Map(); }
+          return bandCache;
+        };
+        const bandLinks = async (text) => {
+          const names = await loadBandNames();
+          const low = text.toLowerCase();
+          const found = [...names.keys()].filter(n => n.length >= 3 && (/^[\x00-\x7f]+$/.test(n) ? text.includes(n) : low.includes(n.toLowerCase())))
+            .sort((a, b) => b.length - a.length).slice(0, 3);
+          return found.map(n => {
+            const q = encodeURIComponent(n + ' バンド');
+            return { name: n, url: names.get(n) || '', yt: `https://www.youtube.com/results?search_query=${q}`, sp: `https://open.spotify.com/search/${encodeURIComponent(n)}` };
+          });
+        };
         const sendAi = async (preset) => {
           const text = (preset || aiInput.value).trim();
           if (!text || aiLoading.value) return;
@@ -1871,7 +1899,7 @@
               body: JSON.stringify({ messages: aiMessages.value.map(m => ({ role: m.role, text: m.text })) })
             });
             const out = await res.json();
-            aiMessages.value.push({ role: 'ai', text: out.reply || 'うまく答えられませんでした。', proposal: out.proposal || null, status: '' });
+            aiMessages.value.push({ role: 'ai', text: out.reply || 'うまく答えられませんでした。', proposal: out.proposal || null, status: '', bands: await bandLinks(out.reply || '') });
           } catch (err) {
             aiMessages.value.push({ role: 'ai', text: '通信に失敗しました。時間をおいてもう一度お試しください。' });
           } finally { aiLoading.value = false; scrollAi(); }
