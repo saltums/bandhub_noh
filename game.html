@@ -111,6 +111,38 @@ function goldRiff(){if(!AC||muted)return;const n=[41.2,49,55,61.7,73.4,82.4,98,1
 function thud(){tone(55,.25,'square',.3,300);tone(40,.35,'sawtooth',.25,200)}
 function blip(){tone(880,.1,'triangle',.12,3000)}
 function buzz(ms){try{if(navigator.vibrate)navigator.vibrate(ms)}catch(e){}}
+
+// ---- BGM: チップチューン (G#2 G#3 F#3 C#3 D#3 B3 A#3 B3 C#3 D#3)
+const RIFF=[103.83,207.65,185.00,138.59,155.56,246.94,233.08,246.94,138.59,155.56].map((f,i)=>f);
+RIFF[8]=138.59;RIFF[9]=155.56;
+let bgm=null;
+function noiseBuf(){const n=AC.sampleRate*.3,bf=AC.createBuffer(1,n,AC.sampleRate),d=bf.getChannelData(0);for(let i=0;i<n;i++)d[i]=Math.random()*2-1;return bf}
+function bgmNote(t,f,dur,type,vol,dest){const o=AC.createOscillator(),g=AC.createGain();o.type=type;o.frequency.setValueAtTime(f,t);g.gain.setValueAtTime(0.0001,t);g.gain.linearRampToValueAtTime(vol,t+.006);g.gain.setValueAtTime(vol*.8,t+dur*.6);g.gain.linearRampToValueAtTime(0.0001,t+dur);o.connect(g);g.connect(dest);o.start(t);o.stop(t+dur+.02)}
+function bgmNoise(t,dur,vol,hp,dest){const s=AC.createBufferSource(),g=AC.createGain(),fl=AC.createBiquadFilter();s.buffer=bgm.nb;fl.type='highpass';fl.frequency.value=hp;g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);s.connect(fl);fl.connect(g);g.connect(dest);s.start(t);s.stop(t+dur+.02)}
+function bgmKick(t,dest){const o=AC.createOscillator(),g=AC.createGain();o.type='square';o.frequency.setValueAtTime(150,t);o.frequency.exponentialRampToValueAtTime(45,t+.12);g.gain.setValueAtTime(.22,t);g.gain.exponentialRampToValueAtTime(.001,t+.14);o.connect(g);g.connect(dest);o.start(t);o.stop(t+.16)}
+function bgmStep(t,i,rush){
+  const d=bgm.out,f=RIFF[i%RIFF.length],sd=bgm.step;
+  bgmNote(t,f,sd*.9,'square',.075,d);              // リード(原音)
+  bgmNote(t,f*2,sd*.9,'square',.035,d);            // 1オクターブ上(スマホ用)
+  bgmNote(t,f/2,sd*.95,'triangle',.11,d);          // ベース
+  if(rush)bgmNote(t,f*4,sd*.45,'square',.03,d);    // ラッシュ時はキラキラ
+  if(i%2===0)bgmKick(t,d);
+  else bgmNoise(t,.04,.08,6000,d);
+  if(i===3||i===7)bgmNoise(t,.1,.12,1800,d);        // スネア
+}
+function bgmStart(){
+  if(!AC||bgm)return;
+  const out=AC.createGain();out.gain.value=muted?0:1;out.connect(AC.destination);
+  bgm={out,nb:noiseBuf(),i:0,next:AC.currentTime+.08,step:.16,timer:0};
+  bgm.timer=setInterval(()=>{
+    if(!bgm||state!=='play')return;
+    const rush=S&&S.rush>0,dp=S?S.depth:0;
+    bgm.step=.16/(1+Math.min(dp,200)/250)*(rush?.7:1);
+    while(bgm.next<AC.currentTime+.15){bgmStep(bgm.next,bgm.i,rush);bgm.i=(bgm.i+1)%RIFF.length;bgm.next+=bgm.step}
+  },25);
+}
+function bgmStop(){if(!bgm)return;const o=bgm;bgm=null;clearInterval(o.timer);try{o.out.gain.setValueAtTime(o.out.gain.value,AC.currentTime);o.out.gain.linearRampToValueAtTime(0,AC.currentTime+.25);setTimeout(()=>{try{o.out.disconnect()}catch(e){}},400)}catch(e){}}
+document.addEventListener('visibilitychange',()=>{if(!AC)return;try{document.hidden?AC.suspend():AC.resume()}catch(e){}});
 const GOLD_RATE=.08;
 const TMAX=30, RUSH_CHANCE=.12, RUSH_RATE=.7;
 const LIMIT=15, PXM=26;
@@ -248,10 +280,10 @@ function bestLocal(){return Number(localStorage.getItem('bh_game_best')||0)}
 function startGame(){audioOn();
   const n=myName();if(!n){$('nm').focus();$('nm').style.borderColor='#f87171';return}
   try{localStorage.setItem('bh_game_name',n)}catch(e){}
-  reset();S.goldRate=Math.random()<RUSH_CHANCE?RUSH_RATE:GOLD_RATE;if(S.goldRate===RUSH_RATE){popText('✨ ゴールドベース・ラッシュ！ よく出るぞ ✨',W/2,H*.55,'#fde047');S.pop[0].t=-.8}state='play';$('start').classList.add('hide');$('end').classList.add('hide');$('hud').classList.remove('hide');
+  reset();S.goldRate=Math.random()<RUSH_CHANCE?RUSH_RATE:GOLD_RATE;if(S.goldRate===RUSH_RATE){popText('✨ ゴールドベース・ラッシュ！ よく出るぞ ✨',W/2,H*.55,'#fde047');S.pop[0].t=-.8}state='play';bgmStart();$('start').classList.add('hide');$('end').classList.add('hide');$('hud').classList.remove('hide');
 }
 async function endGame(){
-  state='over';const depth=Math.floor(S.depth*10)/10;
+  state='over';bgmStop();const depth=Math.floor(S.depth*10)/10;
   $('fin').textContent=Math.floor(depth);
   let nb=false;const b=bestLocal();if(depth>b){nb=true;try{localStorage.setItem('bh_game_best',String(depth))}catch(e){}}
   $('endmsg').textContent=nb?'🎉 自己ベスト更新！':'タイムアップ！';
@@ -265,7 +297,7 @@ function setTx(e){if(state!=='play')return;const r=cv.getBoundingClientRect();S.
 cv.addEventListener('pointerdown',e=>{e.preventDefault();try{cv.setPointerCapture(e.pointerId)}catch(_){}setTx(e)});
 cv.addEventListener('pointermove',e=>{e.preventDefault();setTx(e)});
 addEventListener('keydown',e=>{if(state!=='play')return;const st=W*.12;if(e.code==='ArrowLeft')S.tx=Math.max(24,S.tx-st);if(e.code==='ArrowRight')S.tx=Math.min(W-24,S.tx+st)});
-$('mute').addEventListener('click',()=>{muted=!muted;$('mute').textContent=muted?'🔇':'🔊'});
+$('mute').addEventListener('click',()=>{muted=!muted;if(bgm)bgm.out.gain.value=muted?0:1;$('mute').textContent=muted?'🔇':'🔊'});
 $('go').addEventListener('click',startGame);
 $('again').addEventListener('click',()=>{audioOn();$('end').classList.add('hide');reset();state='play'});
 try{$('nm').value=localStorage.getItem('bh_game_name')||''}catch(e){}
