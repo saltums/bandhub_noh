@@ -127,6 +127,19 @@
           <div class="p-4 pb-24">
             <!-- ライブ一覧 (新しい順) -->
             <div v-if="liveViewMode === 'list'" class="space-y-4">
+              <div class="bg-white rounded-xl shadow border border-gray-200 p-3 space-y-2">
+                <input type="search" v-model="liveSearch" placeholder="タイトル・会場・対バンで検索"
+                  class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                <div class="flex items-center gap-2 text-xs">
+                  <select v-model="liveEra" class="bg-gray-50 border border-gray-300 rounded-lg px-2 py-1">
+                    <option value="">すべての時代</option>
+                    <option value="noh">noh</option>
+                    <option value="jointrally">JointRally(旧名義)</option>
+                  </select>
+                  <span class="text-gray-400">{{ sortedLivesDesc.length }}件</span>
+                  <a href="noh-live/index.html" class="ml-auto text-teal-600 font-bold underline">検索・分析ページ →</a>
+                </div>
+              </div>
               <div v-for="live in sortedLivesDesc" :key="live.ID" @click="goToLiveDetail(live)"
                 class="bg-white rounded-xl shadow border border-gray-200 overflow-hidden active:bg-gray-50 transition cursor-pointer">
                 <div class="px-4 py-2 text-sm font-bold tracking-wider flex justify-between items-center"
@@ -153,6 +166,10 @@
                       {{ live.ライブ場所 }}
                     </a>
                     <span v-else>未定</span>
+                    <span v-if="live.時代 === 'jointrally'" class="ml-2 text-[10px] font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full">JointRally</span>
+                  </p>
+                  <p v-if="actsOf(live).length" class="text-xs text-gray-500 mt-2 leading-relaxed">
+                    <i class="fas fa-users mr-1 text-gray-400"></i>{{ actsOf(live).join(' / ') }}
                   </p>
                   <div class="flex items-center space-x-3 mt-2" v-if="live.動画URL || live.写真URL">
                     <a v-if="live.動画URL" :href="live.動画URL" target="_blank" @click.stop
@@ -305,6 +322,18 @@
                     :href="`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activeLive.ライブ場所)}`"
                     target="_blank" class="text-[10px] text-blue-600 mt-1 inline-block">
                     <i class="fas fa-map-marker-alt mr-1"></i>Google Mapで開く</a>
+                </div>
+
+                <div class="mb-4">
+                  <label class="text-xs font-bold text-gray-500 block mb-1">対バン (、区切り)</label>
+                  <textarea rows="2" :value="actsOf(activeLive).join('、')" @input="setActs(activeLive, $event.target.value)"
+                    class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm"></textarea>
+                  <p v-if="activeLive.開場 || activeLive.開演 || activeLive.料金 || activeLive.出典" class="text-[11px] text-gray-400 mt-1">
+                    <span v-if="activeLive.開場">開場 {{ activeLive.開場 }}</span>
+                    <span v-if="activeLive.開演"> / 開演 {{ activeLive.開演 }}</span>
+                    <span v-if="activeLive.料金"> / {{ activeLive.料金 }}</span>
+                    <span v-if="activeLive.出典"> ・出典: {{ activeLive.出典 }}</span>
+                  </p>
                 </div>
 
                 <!-- 動画URL・写真URL -->
@@ -861,11 +890,11 @@
             <div v-if="adminTab === 'api'" class="space-y-4 px-2">
               <div class="bg-white p-6 rounded-2xl shadow-lg border border-fuchsia-100 relative overflow-hidden">
                 <div class="absolute -top-10 -right-10 w-32 h-32 bg-fuchsia-50 rounded-full opacity-50"></div>
-                <label class="text-[10px] font-black text-fuchsia-400 uppercase tracking-widest mb-2 block relative">GAS Endpoint URL</label>
-                <input type="text" v-model="gasApiUrl" placeholder="https://script.google.com/macros/s/..."
+                <label class="text-[10px] font-black text-fuchsia-400 uppercase tracking-widest mb-2 block relative">Supabase (データ保存先)</label>
+                <input type="text" v-model="gasApiUrl" readonly
                   class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-xs font-mono focus:ring-2 focus:ring-fuchsia-500 outline-none relative transition">
                 <button @click="saveSettings" class="w-full mt-4 bg-fuchsia-600 text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 transition relative">
-                  設定を保存して更新
+                  データを再読み込み
                 </button>
               </div>
             </div>
@@ -1142,7 +1171,7 @@
         const currentPage = ref('home');
         const loading = ref(false);
         const saving = ref(false);
-        const gasApiUrl = ref(localStorage.getItem('band_hub_gas_url') || 'https://script.google.com/macros/s/AKfycbxnZRcBtiwJ6HS5JQ8yAlq_OHCG-rzQRjxWxLXDBsZnBox7TnM6Z5p0ySjOnZQ6dnNA/exec');
+        const gasApiUrl = ref('https://bcxwfosythkuwdmkwkkj.supabase.co');
 
         const db = ref({
           songs: [], lives: [], setlists: [], guests: [], stagePlots: [],
@@ -1150,34 +1179,61 @@
         });
 
         // --- API 通信 (GitHub Pages対応) ---
-        const callApi = async (action, data = null) => {
-          const url = gasApiUrl.value ? gasApiUrl.value.trim() : '';
-          
-          if (!url) {
-            // モックデータ（URL未設定時のプレビュー）
-            if (action === 'getAllData') return {
-              songs: [{ ID: 's1', 曲名: 'Opening SE', '時間(分)': 2, '時間(秒)': 30, 演奏回数: 5 }, { ID: 's2', 曲名: 'Super Rock', '時間(分)': 4, '時間(秒)': 0, 演奏回数: 12 }],
-              lives: [{ ID: 'L1', 日にち: '2025-09-20', ライブ場所: '渋谷CLUB QUATTRO', ライブタイトル: 'Autumn Tour', '制限時間(分)': 35, ステータス: '参加' }],
-              studios: [{ ID: 'st1', 日にち: '2026-03-15', 場所: 'Studio NODE 渋谷', 開始時間: '13:00', 終了時間: '16:00', 参加メンバー: [], 備考: 'ゲネプロ用' }],
-              members: [{ ID: 'm1', 名前: 'Taro', 区分: '正規', パート: 'Vocal' }],
-              sns: [{ ID: 'sns1', サービス名: 'X (旧Twitter)', ログインID: 'id', パスワード: 'pwd' }],
-              setlists: [], guests: [], stagePlots: [], songVideos: []
-            };
-            return data;
+        // --- Supabase 通信 (旧: Google Apps Script) ---
+        const SUPABASE_URL = 'https://bcxwfosythkuwdmkwkkj.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_M1RuhvoQzl7D6To4FR2NYQ_LvNnA5bW';
+        const NUMERIC_FIELDS = ['時間(分)', '時間(秒)', '演奏回数', '制限時間(分)', 'チケット代', '順番', '人数', '合計金額'];
+        const sb = async (path, { method = 'GET', body = null, prefer = '' } = {}) => {
+          const headers = { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' };
+          if (prefer) headers.Prefer = prefer;
+          const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { method, headers, body: body == null ? null : JSON.stringify(body) });
+          if (!res.ok) throw new Error(`Supabaseエラー (${res.status}): ${(await res.text()).slice(0, 200)}`);
+          const text = await res.text();
+          return text ? JSON.parse(text) : null;
+        };
+        const clean = (row) => {
+          const r = { ...row };
+          for (const k of Object.keys(r)) {
+            if (r[k] === undefined) delete r[k];
+            else if (NUMERIC_FIELDS.includes(k)) r[k] = (r[k] === '' || r[k] === null) ? null : Number(r[k]);
+            else if (['BPM', 'カポ'].includes(k) && r[k] != null) r[k] = String(r[k]);
           }
-
-          try {
-            const response = await fetch(url, {
-              method: 'POST',
-              body: JSON.stringify({ action, data }),
-              headers: { 'Content-Type': 'text/plain' }
-            });
-            const result = await response.json();
-            if (result.status === 'error') throw new Error(result.message);
-            return result.data;
-          } catch (err) {
-            console.error('API Error:', err);
-            throw new Error(`API接続エラー:\n内容: ${err.message}\nURL: ${url}`);
+          return r;
+        };
+        const upsert = async (table, row, pk = 'ID') => {
+          const r = clean(row);
+          if (pk === 'ID' && !r.ID) r.ID = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2));
+          const out = await sb(`${table}?on_conflict=${encodeURIComponent(pk)}`, { method: 'POST', body: r, prefer: 'resolution=merge-duplicates,return=representation' });
+          return out[0];
+        };
+        const callApi = async (action, data = null) => {
+          switch (action) {
+            case 'getAllData': {
+              const tables = ['songs', 'lives', 'setlists', 'guests', 'stagePlots', 'files', 'sns', 'studios', 'members', 'songVideos'];
+              const rows = await Promise.all(tables.map(t => sb(`${t}?select=*&limit=5000`)));
+              const out = {};
+              tables.forEach((t, i) => { out[t] = rows[i] || []; });
+              out.setlists.sort((a, b) => (a.順番 || 0) - (b.順番 || 0));
+              return out;
+            }
+            case 'saveSong': return upsert('songs', data);
+            case 'saveLive': return upsert('lives', data);
+            case 'saveStudio': return upsert('studios', data);
+            case 'saveSongVideo': return upsert('songVideos', data);
+            case 'saveGuest': return upsert('guests', data);
+            case 'saveMember': return upsert('members', data);
+            case 'saveSNS': return upsert('sns', data);
+            case 'saveStagePlot': return upsert('stagePlots', data, 'ライブID');
+            case 'removeSongVideo': await sb(`songVideos?ID=eq.${encodeURIComponent(data)}`, { method: 'DELETE' }); return true;
+            case 'removeMember': await sb(`members?ID=eq.${encodeURIComponent(data)}`, { method: 'DELETE' }); return true;
+            case 'saveSetlist': {
+              const lid = encodeURIComponent(data.liveId);
+              await sb(`setlists?ライブID=eq.${lid}`, { method: 'DELETE' });
+              const rows = data.setlist.map((songId, i) => ({ ライブID: data.liveId, 曲ID: songId, 順番: i + 1 }));
+              if (rows.length) await sb('setlists', { method: 'POST', body: rows, prefer: 'return=minimal' });
+              return true;
+            }
+            default: throw new Error('未対応の操作です: ' + action);
           }
         };
 
@@ -1192,16 +1248,15 @@
               songVideos: data.songVideos || []
             };
           } catch (err) {
-            if (gasApiUrl.value) alert(err.message);
+            alert(err.message);
           } finally {
             loading.value = false;
           }
         };
 
         const saveSettings = () => {
-          localStorage.setItem('band_hub_gas_url', gasApiUrl.value);
-          alert('設定を保存しました。データを更新します。');
           loadData();
+          alert('データを再読み込みしました。');
         };
 
         onMounted(loadData);
@@ -1269,9 +1324,17 @@
         const calendarYear = ref(new Date().getFullYear());
 
         // 新しい順（降順）
+        const liveSearch = ref('');
+        const liveEra = ref('');
+        const actsOf = (live) => Array.isArray(live.対バン) ? live.対バン : [];
         const sortedLivesDesc = computed(() => {
-          return [...db.value.lives].sort((a, b) => new Date(b.日にち) - new Date(a.日にち));
+          const q = liveSearch.value.trim().toLowerCase();
+          return [...db.value.lives]
+            .filter(l => !liveEra.value || (liveEra.value === 'now' ? !l.時代 || l.時代 === 'noh' : l.時代 === liveEra.value))
+            .filter(l => !q || [l.ライブタイトル, l.ライブ場所, l.日にち, l.備考, actsOf(l).join(' ')].join(' ').toLowerCase().includes(q))
+            .sort((a, b) => new Date(b.日にち) - new Date(a.日にち));
         });
+        const setActs = (live, text) => { live.対バン = text.split(/[、,\n]/).map(x => x.trim()).filter(Boolean); };
         // カレンダー用(昇順)
         const getLivesInMonth = (year, month) => {
           return db.value.lives.filter(l => {
@@ -1701,7 +1764,7 @@
           currentPage, loading, saving, goHome, menuOrder, clickMenu, db,
           songSearchQuery, filteredSongs, showSongModal, editSong, openSongModal, saveSong,
           newSongVideo, getSongVideos, getMemberName, addSongVideo, removeSongVideo,
-          liveViewMode, calendarYear, sortedLivesDesc, formatDate,
+          liveViewMode, calendarYear, sortedLivesDesc, formatDate, liveSearch, liveEra, actsOf, setActs,
           getLivesInMonth, hasLiveMonth, getStudiosInMonth, hasStudioMonth, sortedMonths, uniqueVenues,
           studioYear, studioMonth, changeStudioMonth, getStudiosInExactMonth, uniqueStudioVenues,
           showStudioModal, editStudio, openStudioModal, saveStudio, toggleStudioMember,

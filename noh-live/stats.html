@@ -68,7 +68,7 @@
 <script src="shows.js"></script>
 <script src="common.js"></script>
 <script>
-(function(){
+window.shows_ready.then(function(){
   mountNav();
   const $=id=>document.getElementById(id);
   let era="";
@@ -111,7 +111,7 @@
   }
   $("seg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;era=b.dataset.e;[...$("seg").children].forEach(x=>x.classList.toggle("on",x===b));render()});
   render();
-})();
+});;
 </script>
 </body>
 </html>

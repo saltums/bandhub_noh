@@ -22,3 +22,21 @@
   };
   window.played=()=>window.SHOWS.filter(s=>!s.upcoming);
 })();
+
+// データ読み込み: Supabase(アプリと共通)を優先し、失敗したら同梱のshows.jsを使う
+window.shows_ready=(async function(){
+  try{
+    const r=await fetch("https://bcxwfosythkuwdmkwkkj.supabase.co/rest/v1/lives?select=*&limit=5000",{headers:{apikey:"sb_publishable_M1RuhvoQzl7D6To4FR2NYQ_LvNnA5bW"}});
+    if(!r.ok) throw new Error(r.status);
+    const rows=await r.json();
+    if(!rows.length) throw new Error("empty");
+    const today=new Date(Date.now()+9*3600e3).toISOString().slice(0,10);
+    window.SHOWS=rows.filter(l=>l["日にち"]&&l["ステータス"]!=="中止").map(l=>({
+      date:String(l["日にち"]).slice(0,10), title:l["ライブタイトル"]||"", venue:l["ライブ場所"]||"(会場未確認)",
+      pref:l["都道府県"]||"不明", acts:Array.isArray(l["対バン"])?l["対バン"]:[], open:l["開場"]||"", start:l["開演"]||"",
+      price:l["料金"]||(l["チケット代"]?("¥"+l["チケット代"]):""), note:l["備考"]||"", era:l["時代"]||"noh",
+      upcoming:String(l["日にち"]).slice(0,10)>today
+    })).sort((a,b)=>b.date.localeCompare(a.date));
+    window.SHOWS_SOURCE="supabase";
+  }catch(e){ window.SHOWS_SOURCE="static"; console.warn("Supabase読み込み失敗。同梱データを使用",e); }
+})();

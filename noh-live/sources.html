@@ -61,16 +61,16 @@
 
     <div class="card">
       <h2>確認できていない項目</h2>
-      <p class="muted">日付の推定、会場や出演者の不明など、補足が必要な公演です。情報があれば <code>shows.js</code> に追記できます。</p>
+      <p class="muted">日付の推定、会場や出演者の不明など、補足が必要な公演です。情報はバンド管理アプリのライブ編集から追記できます。</p>
       <div class="scroll"><table id="unk"></table></div>
     </div>
   </div>
-  <footer>データは個人による収集です。誤りや追加情報があれば shows.js を直接修正してください。</footer>
+  <footer>データは個人による収集です。データはバンド管理アプリと共通(Supabase)です。誤りや追加情報はアプリから修正できます。</footer>
 </div>
 <script src="shows.js"></script>
 <script src="common.js"></script>
 <script>
-(function(){
+window.shows_ready.then(function(){
   mountNav();
   const L=window.SHOWS;
   document.getElementById("c-off").textContent=L.filter(s=>srcOf(s)==="official").length;
@@ -79,7 +79,7 @@
   document.getElementById("tl").innerHTML=ys.map(y=>{const n=L.filter(s=>s.date.startsWith(String(y))&&!s.upcoming).length;return '<div class="'+(n<3?'gap':'')+'"><b>'+n+'</b>'+y+'年</div>'}).join("");
   const unk=L.filter(s=>!s.upcoming&&(!s.acts.length||/未確認|推定/.test(s.title+s.note+s.venue)));
   document.getElementById("unk").innerHTML='<tr><th>日付</th><th>会場 / 企画</th><th>メモ</th></tr>'+unk.map(s=>'<tr><td class="num">'+fmtDate(s.date)+'</td><td>'+esc(s.venue)+' ・ '+esc(s.title)+'</td><td>'+esc(s.note||"出演者が未確認")+'</td></tr>').join("");
-})();
+});;
 </script>
 </body>
 </html>

@@ -94,7 +94,7 @@
 <script src="shows.js"></script>
 <script src="common.js"></script>
 <script>
-(function(){
+window.shows_ready.then(function(){
   mountNav();
   const S = window.SHOWS.slice();
   const P = new URLSearchParams(location.search);
@@ -175,7 +175,7 @@
   $("close").onclick=()=>document.querySelectorAll("details.show").forEach(d=>d.open=false);
   $("reset").onclick=()=>{Object.assign(state,{q:"",year:"",era:"",pref:"",venue:"",up:true,rq:""});state.acts.clear();["q","rq","year","era","pref","venue"].forEach(i=>$(i).value="");$("up").checked=true;render()};
   render();
-})();
+});;
 </script>
 </body>
 </html>
