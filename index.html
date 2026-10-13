@@ -695,9 +695,10 @@
                     </p>
                   </div>
                   <div class="flex items-center space-x-2">
-                    <a v-if="st.動画URL" :href="st.動画URL" target="_blank"
-                      class="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100">
+                    <a v-for="(vu, vi) in urlList(st.動画URL)" :key="vi" :href="vu" target="_blank"
+                      class="relative w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100">
                       <i class="fas fa-video text-sm"></i>
+                      <span v-if="urlList(st.動画URL).length > 1" class="absolute -top-1 -right-1 bg-blue-600 text-white text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center">{{ vi + 1 }}</span>
                     </a>
                     <button @click="openStudioModal(st)" class="text-gray-400 p-1 hover:text-orange-500">
                       <i class="fas fa-edit"></i></button>
@@ -758,15 +759,25 @@
                 <option v-for="v in uniqueStudioVenues" :key="v" :value="v"></option>
               </datalist>
             </div>
-            <!-- 動画URL -->
+            <!-- 動画URL (複数) -->
             <div>
-              <label class="text-xs font-bold text-gray-500 block mb-1"><i class="fas fa-video text-blue-500 mr-1"></i>動画URL</label>
-              <div class="flex space-x-2">
-                <input type="text" v-model="editStudio.動画URL" placeholder="https://..."
-                  class="flex-grow bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm text-blue-600">
-                <button @click="shareOnLine(editStudio, 'studio_video')"
-                  class="bg-[#06C755] text-white px-3 py-2 rounded-lg shadow-sm active:scale-95 transition flex items-center justify-center">
-                  <i class="fab fa-line text-xl"></i>
+              <label class="text-xs font-bold text-gray-500 block mb-1"><i class="fas fa-video text-blue-500 mr-1"></i>動画URL <span class="font-normal text-gray-400">(複数追加できます)</span></label>
+              <div class="space-y-2">
+                <div v-for="(u, i) in studioUrls" :key="i" class="flex space-x-2">
+                  <input type="text" v-model="studioUrls[i]" placeholder="https://..."
+                    class="flex-grow min-w-0 bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm text-blue-600">
+                  <button @click="shareOnLine({ ...editStudio, 動画URL: (studioUrls[i] || '').trim() }, 'studio_video')"
+                    class="bg-[#06C755] text-white px-3 py-2 rounded-lg shadow-sm active:scale-95 transition flex items-center justify-center">
+                    <i class="fab fa-line text-xl"></i>
+                  </button>
+                  <button @click="studioUrls.splice(i, 1)" aria-label="この動画URLを削除"
+                    class="bg-gray-100 text-gray-500 px-3 py-2 rounded-lg active:scale-95 transition flex items-center justify-center">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+                </div>
+                <button @click="studioUrls.push('')"
+                  class="w-full border border-dashed border-blue-300 text-blue-600 rounded-lg py-2 text-sm font-bold active:scale-95 transition">
+                  <i class="fas fa-plus mr-1"></i>動画URLを追加
                 </button>
               </div>
             </div>
@@ -1526,10 +1537,15 @@
         });
         const showStudioModal = ref(false);
         const editStudio = ref({});
+        const studioUrls = ref([]);
+        // 動画URLは改行区切りで1列に保存(既存の1件だけのデータもそのまま使える)
+        const urlList = (s) => String(s || '').split(/\s+/).map(x => x.trim()).filter(Boolean);
         const openStudioModal = (st) => {
           if (st) editStudio.value = { ...st };
           else editStudio.value = { ID: '', 日にち: new Date().toISOString().slice(0, 10), 開始時間: '', 終了時間: '', 場所: '', 参加メンバー: [], 備考: '', 動画URL: '' };
           if (!editStudio.value.参加メンバー) editStudio.value.参加メンバー = [];
+          studioUrls.value = urlList(editStudio.value.動画URL);
+          if (!studioUrls.value.length) studioUrls.value = [''];
           showStudioModal.value = true;
         };
         const toggleStudioMember = (id) => {
@@ -1542,6 +1558,7 @@
           if (!editStudio.value) return;
           saving.value = true;
           try {
+            editStudio.value.動画URL = studioUrls.value.map(x => (x || '').trim()).filter(Boolean).join('\n');
             const res = await callApi('saveStudio', editStudio.value);
             showStudioModal.value = false;
             const idx = db.value.studios.findIndex(s => s.ID === res.ID);
@@ -2035,7 +2052,7 @@
           liveViewMode, calendarYear, sortedLivesDesc, formatDate, liveSearch, liveEra, liveYear, liveYears, actsOf, actInput, addAct, removeAct,
           getLivesInMonth, hasLiveMonth, getStudiosInMonth, hasStudioMonth, sortedMonths, uniqueVenues,
           studioYear, studioMonth, changeStudioMonth, getStudiosInExactMonth, uniqueStudioVenues,
-          showStudioModal, editStudio, openStudioModal, saveStudio, toggleStudioMember,
+          showStudioModal, editStudio, studioUrls, urlList, openStudioModal, saveStudio, toggleStudioMember,
           activeLive, liveDetailTab, goToLiveDetail, goToSetlist, openLiveModal, saveActiveLive, toggleLiveMember,
           showSetlistModal, openSetlistModal, 
           activeSetlist, showSongSelector, getSongName, getSongTime, formatTimeStr, songNumberOf,
