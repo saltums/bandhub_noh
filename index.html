@@ -1382,21 +1382,7 @@
           { id: 'url:https://script.google.com/macros/s/AKfycby0GpJNqC_10Rd9vOLE19LoFcopLW0Lc31izxJ7qwtXPEocAjWPsUqjAsy84uKDADFw/exec', title: '物販アプリ', subtitle: '物販POSを開きます', icon: 'fas fa-external-link-alt', colorClass: 'from-purple-500 to-violet-600' }
         ]);
 
-        let homeSortable = null;
-        const initHomeSortable = () => {
-          const el = document.getElementById('home-menu-container');
-          if (!el) return;
-          if (homeSortable) homeSortable.destroy();
-          homeSortable = new Sortable(el, {
-            animation: 150,
-            onEnd: (evt) => {
-              const item = menuOrder.value.splice(evt.oldIndex, 1)[0];
-              menuOrder.value.splice(evt.newIndex, 0, item);
-            }
-          });
-        };
-        Vue.watch(currentPage, (val) => { if (val === 'home') nextTick(initHomeSortable); });
-        onMounted(() => { setTimeout(initHomeSortable, 100); });
+        // ホームのメニューは並び替え不可(固定)
 
         const clickMenu = (id) => {
           if (id.startsWith('url:')) { window.open(id.slice(4), '_blank'); return; }
