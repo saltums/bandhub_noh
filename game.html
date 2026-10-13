@@ -151,7 +151,7 @@ function bgmStart(){
 function bgmStop(){if(!bgm)return;const o=bgm;bgm=null;clearInterval(o.timer);try{o.out.gain.setValueAtTime(o.out.gain.value,AC.currentTime);o.out.gain.linearRampToValueAtTime(0,AC.currentTime+.25);setTimeout(()=>{try{o.out.disconnect();o.lfo.stop()}catch(e){}},1500)}catch(e){}}
 document.addEventListener('visibilitychange',()=>{if(!AC)return;try{document.hidden?AC.suspend():AC.resume()}catch(e){}});
 const GOLD_RATE=.08;
-const TMAX=30, HARD=45, DEPTH_MAX=400, RUSH_CHANCE=.12, RUSH_RATE=.7;
+const TMAX=30, HARD=40, GOLD_MAX=3, DEPTH_MAX=400, RUSH_CHANCE=.12, RUSH_RATE=.7;
 const LIMIT=15, PXM=26;
 const ITEM_KINDS=[{k:'item_tank',w:3,m:'酸素ボンベ！ +12m'},{k:'item_string',w:4,m:'弦ゲット +4m'},{k:'item_star',w:2,m:'ステージダイブ！ 4秒ダブル'},{k:'item_clock',w:2,m:'時計 +2秒'},{k:'item_bad',w:3,m:'ハウリング… 浮かされた'}];
 const OBS=[{k:'ob_cable',w:78,h:39},{k:'ob_speaker',w:54,h:72},{k:'ob_amp',w:64,h:55}];
@@ -161,7 +161,7 @@ function reset(){S={t:LIMIT,depth:0,v:0,time:0,objs:[],nextSpawn:6,bubbles:[],db
 function pickItem(){const tot=ITEM_KINDS.reduce((a,b)=>a+b.w,0);let r=Math.random()*tot;for(const it of ITEM_KINDS){if((r-=it.w)<=0)return it}return ITEM_KINDS[0]}
 function spawn(){
   const x=W*(.12+Math.random()*.76);
-  if(Math.random()<S.goldRate){S.objs.push({type:'item',it:{k:'item_gold'},k:'item_gold',x,d:S.depth+34,w:52,h:52})}
+  if((S.goldN||0)<GOLD_MAX&&Math.random()<S.goldRate){S.goldN=(S.goldN||0)+1;S.objs.push({type:'item',it:{k:'item_gold'},k:'item_gold',x,d:S.depth+34,w:52,h:52})}
   else if(Math.random()<.42){const it=pickItem();S.objs.push({type:'item',it,k:it.k,x,d:S.depth+34,w:it.k==='item_string'?38:34,h:it.k==='item_string'?47:34})}
   else{const o=OBS[Math.floor(Math.random()*OBS.length)];S.objs.push({type:'ob',k:o.k,x,d:S.depth+34,w:o.w,h:o.h})}
   S.nextSpawn=S.depth+34+ (4+Math.random()*7);
@@ -176,6 +176,7 @@ function update(dt){
   if(S.rush>0){const d=Math.min(S.rush,dt);S.depth+=100*d/S.rushT;S.rush-=dt}
   S.dx+=(S.tx-S.dx)*Math.min(1,dt*10);
   if(S.slow>0)S.slow-=dt;if(S.dbl>0)S.dbl-=dt;if(S.inv>0)S.inv-=dt;if(S.shake>0)S.shake-=dt;
+  if(S.depth>=DEPTH_MAX){S.depth=DEPTH_MAX;endGame();return}
   while(S.nextSpawn<S.depth+36&&S.objs.length<30)spawn();
   const dx=S.dx, dy=H*.34;
   for(let i=S.objs.length-1;i>=0;i--){
@@ -294,7 +295,7 @@ async function endGame(){
   state='over';bgmStop();const depth=Math.min(DEPTH_MAX,Math.floor(S.depth*10)/10);
   $('fin').textContent=Math.floor(depth);
   let nb=false;const b=bestLocal();if(depth>b){nb=true;try{localStorage.setItem('bh_game_best',String(depth))}catch(e){}}
-  $('endmsg').textContent=nb?'🎉 自己ベスト更新！':'タイムアップ！';
+  $('endmsg').textContent=depth>=DEPTH_MAX?'🏆 400m 到達！ 海底に着いた！':nb?'🎉 自己ベスト更新！':'タイムアップ！';
   $('best').textContent='自己ベスト '+Math.floor(Math.max(b,depth))+'m ／ アイテム '+S.items+'個 ／ 最大コンボ '+S.maxCombo+' ／ ギリギリ '+S.near+'回';
   $('end').classList.remove('hide');
   const n=myName();
