@@ -286,10 +286,11 @@ async function ranking(el,mine){
 }
 function myName(){return ($('nm').value||'').trim().slice(0,12)}
 function bestLocal(){return Number(localStorage.getItem('bh_game_best')||0)}
+function beginRun(){reset();S.goldRate=Math.random()<RUSH_CHANCE?RUSH_RATE:GOLD_RATE;if(S.goldRate===RUSH_RATE){popText('✨ ゴールドベース・ラッシュ！ よく出るぞ ✨',W/2,H*.55,'#fde047');S.pop[0].t=-.8}state='play';bgmStop();bgmStart()}
 function startGame(){audioOn();
   const n=myName();if(!n){$('nm').focus();$('nm').style.borderColor='#f87171';return}
   try{localStorage.setItem('bh_game_name',n)}catch(e){}
-  reset();S.goldRate=Math.random()<RUSH_CHANCE?RUSH_RATE:GOLD_RATE;if(S.goldRate===RUSH_RATE){popText('✨ ゴールドベース・ラッシュ！ よく出るぞ ✨',W/2,H*.55,'#fde047');S.pop[0].t=-.8}state='play';bgmStart();$('start').classList.add('hide');$('end').classList.add('hide');$('hud').classList.remove('hide');
+  beginRun();$('start').classList.add('hide');$('end').classList.add('hide');$('hud').classList.remove('hide');
 }
 async function endGame(){
   state='over';bgmStop();const depth=Math.min(DEPTH_MAX,Math.floor(S.depth*10)/10);
@@ -308,7 +309,7 @@ cv.addEventListener('pointermove',e=>{e.preventDefault();setTx(e)});
 addEventListener('keydown',e=>{if(state!=='play')return;const st=W*.12;if(e.code==='ArrowLeft')S.tx=Math.max(24,S.tx-st);if(e.code==='ArrowRight')S.tx=Math.min(W-24,S.tx+st)});
 $('mute').addEventListener('click',()=>{muted=!muted;if(bgm)bgm.out.gain.value=muted?0:1;$('mute').textContent=muted?'🔇':'🔊'});
 $('go').addEventListener('click',startGame);
-$('again').addEventListener('click',()=>{audioOn();$('end').classList.add('hide');reset();state='play'});
+$('again').addEventListener('click',()=>{audioOn();$('end').classList.add('hide');beginRun()});
 try{$('nm').value=localStorage.getItem('bh_game_name')||''}catch(e){}
 $('nm').addEventListener('keydown',e=>{if(e.key==='Enter')startGame()});
 
