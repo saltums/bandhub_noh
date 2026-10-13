@@ -814,6 +814,9 @@
               <button @click="adminTab='api'"
                 :class="{'text-fuchsia-600 border-b-2 border-fuchsia-600': adminTab==='api'}"
                 class="flex-1 py-3 transition">API設定</button>
+              <button @click="adminTab='knowledge'"
+                :class="{'text-fuchsia-600 border-b-2 border-fuchsia-600': adminTab==='knowledge'}"
+                class="flex-1 py-3 transition">AIナレッジ</button>
             </div>
           </div>
 
@@ -902,6 +905,39 @@
                     <i class="fas fa-trash-alt"></i></button>
                 </div>
               </div>
+            </div>
+
+            <div v-if="adminTab === 'knowledge'" class="space-y-3">
+              <p class="text-xs text-gray-500 leading-relaxed">バンドの方針や考え方を書いておくと、AIが回答や提案の根拠にします(例: セットリストの組み方、MCを入れる位置、好みの曲順)。</p>
+              <div v-if="editKnowledge" class="bg-white p-4 rounded-2xl shadow border border-fuchsia-100 space-y-3">
+                <input type="text" v-model="editKnowledge.タイトル" placeholder="タイトル(例: セットリストの基本方針)"
+                  class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                <textarea v-model="editKnowledge.本文" rows="8" placeholder="内容を自由に書いてください"
+                  class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm"></textarea>
+                <label class="flex items-center text-xs text-gray-600"><input type="checkbox" v-model="editKnowledge.有効" class="mr-2">AIに読ませる</label>
+                <div class="flex gap-2">
+                  <button @click="editKnowledge = null" class="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold text-sm">キャンセル</button>
+                  <button @click="saveKnowledge" :disabled="saving" class="flex-1 py-3 rounded-xl bg-fuchsia-600 text-white font-bold text-sm">{{ saving ? '保存中...' : '保存' }}</button>
+                </div>
+              </div>
+              <template v-else>
+                <button @click="editKnowledge = { ID: '', タイトル: '', 本文: '', 有効: true }"
+                  class="w-full py-3 rounded-xl bg-fuchsia-600 text-white font-bold text-sm"><i class="fas fa-plus mr-1"></i>ナレッジを追加</button>
+                <div v-for="k in db.knowledge" :key="k.ID" class="bg-white p-4 rounded-2xl shadow border border-gray-100">
+                  <div class="flex items-start justify-between gap-2">
+                    <div class="min-w-0">
+                      <h4 class="font-bold text-sm text-gray-800">{{ k.タイトル }}
+                        <span v-if="!k.有効" class="ml-1 text-[10px] text-gray-400 border rounded px-1">停止中</span></h4>
+                      <p class="text-xs text-gray-500 mt-1 whitespace-pre-wrap">{{ (k.本文 || '').slice(0, 120) }}{{ (k.本文 || '').length > 120 ? '…' : '' }}</p>
+                    </div>
+                    <div class="flex shrink-0">
+                      <button @click="editKnowledge = { ...k }" class="text-gray-400 p-2 hover:bg-gray-50 rounded-full"><i class="fas fa-pen"></i></button>
+                      <button @click="removeKnowledge(k.ID)" class="text-red-400 p-2 hover:bg-red-50 rounded-full"><i class="fas fa-trash-alt"></i></button>
+                    </div>
+                  </div>
+                </div>
+                <p v-if="!db.knowledge.length" class="text-center text-xs text-gray-400 py-6">まだ登録がありません</p>
+              </template>
             </div>
 
             <div v-if="adminTab === 'api'" class="space-y-4 px-2">
@@ -1145,6 +1181,64 @@
         </div>
       </transition>
 
+      <!-- AIアシスタント (フローティング) -->
+      <div v-show="!showPlotEditor" class="fixed bottom-20 inset-x-0 max-w-md mx-auto z-40 pointer-events-none">
+        <button @click="aiOpen = true" aria-label="AIに聞く"
+          class="pointer-events-auto float-right mr-4 w-14 h-14 rounded-full bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-white shadow-xl flex items-center justify-center active:scale-95 transition">
+          <i class="fas fa-wand-magic-sparkles text-xl"></i>
+        </button>
+      </div>
+      <transition name="fade">
+        <div v-if="aiOpen" class="fixed inset-0 z-50 bg-black/40" @click.self="aiOpen = false">
+          <div class="absolute bottom-0 inset-x-0 max-w-md mx-auto h-[85vh] bg-white rounded-t-3xl shadow-2xl flex flex-col">
+            <div class="flex items-center justify-between px-5 py-4 border-b">
+              <h3 class="font-black text-gray-800"><i class="fas fa-wand-magic-sparkles text-fuchsia-500 mr-2"></i>バンドAI</h3>
+              <div class="flex items-center gap-1">
+                <button v-if="aiMessages.length" @click="aiMessages = []" class="text-xs text-gray-400 px-2 py-1 rounded hover:bg-gray-50">会話をリセット</button>
+                <button @click="aiOpen = false" class="text-gray-400 w-8 h-8 rounded-full hover:bg-gray-50"><i class="fas fa-times"></i></button>
+              </div>
+            </div>
+            <div ref="aiScroll" class="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+              <div v-if="!aiMessages.length" class="space-y-3">
+                <p class="text-sm text-gray-500 leading-relaxed">ライブ・曲・セットリスト・スタジオのデータを見て答えます。変更や追加も頼めます(確認してから反映します)。</p>
+                <button v-for="c in aiChips" :key="c" @click="sendAi(c)"
+                  class="block w-full text-left text-sm bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-xl px-4 py-3 active:bg-indigo-100">{{ c }}</button>
+              </div>
+              <div v-for="(m, i) in aiMessages" :key="i" :class="m.role === 'user' ? 'flex justify-end' : 'flex justify-start'">
+                <div class="max-w-[88%]">
+                  <div :class="m.role === 'user' ? 'bg-indigo-600 text-white rounded-2xl rounded-br-sm' : 'bg-gray-100 text-gray-800 rounded-2xl rounded-bl-sm'"
+                    class="px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words">{{ m.text }}</div>
+                  <div v-if="m.proposal" class="mt-2 bg-white border-2 border-fuchsia-200 rounded-2xl p-3 space-y-2">
+                    <p class="text-xs font-black text-fuchsia-600">変更案: {{ m.proposal.summary }}</p>
+                    <div v-for="(c, ci) in m.proposal.changes" :key="ci" class="bg-fuchsia-50/50 rounded-xl p-2.5 text-xs">
+                      <p class="font-bold text-gray-700">{{ describeChange(c).title }}</p>
+                      <p v-for="r in describeChange(c).rows" :key="r.k" class="text-gray-600 mt-0.5 break-words">
+                        <span class="text-gray-400">{{ r.k }}:</span>
+                        <span v-if="r.before !== undefined" class="line-through text-gray-400 mr-1">{{ r.before || '(空)' }}</span>{{ r.after }}
+                      </p>
+                    </div>
+                    <div v-if="m.status === 'done'" class="text-xs font-bold text-emerald-600"><i class="fas fa-check mr-1"></i>反映しました</div>
+                    <div v-else-if="m.status === 'cancelled'" class="text-xs text-gray-400">見送りました</div>
+                    <div v-else class="flex gap-2">
+                      <button @click="m.status = 'cancelled'" class="flex-1 py-2 rounded-lg bg-gray-100 text-gray-600 text-xs font-bold">やめる</button>
+                      <button @click="applyProposal(m)" :disabled="aiLoading" class="flex-1 py-2 rounded-lg bg-fuchsia-600 text-white text-xs font-bold active:bg-fuchsia-700">実行する</button>
+                    </div>
+                    <p v-if="m.error" class="text-xs text-red-500">{{ m.error }}</p>
+                  </div>
+                </div>
+              </div>
+              <div v-if="aiLoading" class="flex justify-start"><div class="bg-gray-100 text-gray-400 rounded-2xl px-4 py-2.5 text-sm"><i class="fas fa-circle-notch fa-spin mr-2"></i>考え中…</div></div>
+            </div>
+            <form @submit.prevent="sendAi()" class="border-t p-3 flex gap-2 pb-safe">
+              <input v-model="aiInput" type="text" placeholder="聞きたいこと・頼みたいこと" enterkeyhint="send"
+                class="flex-1 bg-gray-50 border border-gray-300 rounded-full px-4 py-2.5 text-sm">
+              <button type="submit" :disabled="aiLoading || !aiInput.trim()"
+                class="w-11 h-11 rounded-full bg-indigo-600 text-white disabled:opacity-40 flex items-center justify-center"><i class="fas fa-paper-plane"></i></button>
+            </form>
+          </div>
+        </div>
+      </transition>
+
       <!-- Bottom Navigation -->
       <nav v-show="!showPlotEditor && currentPage !== 'home'"
         class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-2 flex justify-around pb-safe z-10 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
@@ -1192,7 +1286,7 @@
 
         const db = ref({
           songs: [], lives: [], setlists: [], guests: [], stagePlots: [],
-          files: [], sns: [], studios: [], members: [], songVideos: []
+          files: [], sns: [], studios: [], members: [], songVideos: [], knowledge: []
         });
 
         // --- API 通信 (GitHub Pages対応) ---
@@ -1226,7 +1320,7 @@
         const callApi = async (action, data = null) => {
           switch (action) {
             case 'getAllData': {
-              const tables = ['songs', 'lives', 'setlists', 'guests', 'stagePlots', 'files', 'sns', 'studios', 'members', 'songVideos'];
+              const tables = ['songs', 'lives', 'setlists', 'guests', 'stagePlots', 'files', 'sns', 'studios', 'members', 'songVideos', 'ai_knowledge'];
               const rows = await Promise.all(tables.map(t => sb(`${t}?select=*&limit=5000`)));
               const out = {};
               tables.forEach((t, i) => { out[t] = rows[i] || []; });
@@ -1240,6 +1334,8 @@
             case 'saveGuest': return upsert('guests', data);
             case 'saveMember': return upsert('members', data);
             case 'saveSNS': return upsert('sns', data);
+            case 'saveKnowledge': return upsert('ai_knowledge', { ...data, 更新日時: new Date().toISOString() });
+            case 'removeKnowledge': await sb(`ai_knowledge?ID=eq.${encodeURIComponent(data)}`, { method: 'DELETE' }); return true;
             case 'saveStagePlot': return upsert('stagePlots', data, 'ライブID');
             case 'removeSongVideo': await sb(`songVideos?ID=eq.${encodeURIComponent(data)}`, { method: 'DELETE' }); return true;
             case 'removeMember': await sb(`members?ID=eq.${encodeURIComponent(data)}`, { method: 'DELETE' }); return true;
@@ -1262,7 +1358,7 @@
               songs: data.songs || [], lives: data.lives || [], setlists: data.setlists || [],
               guests: data.guests || [], stagePlots: data.stagePlots || [], files: data.files || [],
               sns: data.sns || [], studios: data.studios || [], members: data.members || [],
-              songVideos: data.songVideos || []
+              songVideos: data.songVideos || [], knowledge: data.ai_knowledge || []
             };
           } catch (err) {
             alert(err.message);
@@ -1718,6 +1814,111 @@
         };
 
         // Admin
+        // --- ナレッジ(AIに読ませる方針メモ) ---
+        const editKnowledge = ref(null);
+        const saveKnowledge = async () => {
+          if (!editKnowledge.value || !editKnowledge.value.タイトル.trim()) { alert('タイトルを入力してください'); return; }
+          saving.value = true;
+          try { await callApi('saveKnowledge', editKnowledge.value); editKnowledge.value = null; await loadData(); }
+          catch (err) { alert(err.message); } finally { saving.value = false; }
+        };
+        const removeKnowledge = async (id) => {
+          if (!confirm('このナレッジを削除しますか?')) return;
+          try { await callApi('removeKnowledge', id); await loadData(); } catch (err) { alert(err.message); }
+        };
+
+        // --- AIアシスタント ---
+        const aiOpen = ref(false);
+        const aiInput = ref('');
+        const aiLoading = ref(false);
+        const aiMessages = ref([]);
+        const aiScroll = ref(null);
+        const aiChips = [
+          '次のライブのセットリストを、過去の傾向から提案して',
+          '今年出た会場と回数を教えて',
+          '直近のライブの対バンを教えて',
+          '次のライブに対バンを追加したい'
+        ];
+        const AI_FIELDS = {
+          live: ['日にち', 'ライブ場所', 'ライブタイトル', '制限時間(分)', '備考', 'チケット代', 'ステータス', '参加メンバー', '対バン', '開場', '開演', '料金'],
+          song: ['曲名', '時間(分)', '時間(秒)', 'BPM', '備考', 'カポ', 'リンクURL', '参加メンバー'],
+          studio: ['日にち', '場所', '参加メンバー', '備考', '開始時間', '終了時間'],
+          guest: ['名前', '人数', 'チケット不要フラグ', '合計金額']
+        };
+        const AI_KIND = {
+          update_live: ['ライブを変更', 'lives', 'live'], insert_live: ['ライブを追加', 'lives', 'live'],
+          update_song: ['曲を変更', 'songs', 'song'], insert_song: ['曲を追加', 'songs', 'song'],
+          update_studio: ['スタジオを変更', 'studios', 'studio'], insert_studio: ['スタジオを追加', 'studios', 'studio'],
+          add_guest: ['ゲストを追加', 'lives', 'guest'], set_setlist: ['セットリストを設定', 'lives', 'setlist']
+        };
+        const pick = (values, allowed) => Object.fromEntries(Object.entries(values || {}).filter(([k]) => allowed.includes(k)));
+        const showVal = (v) => Array.isArray(v) ? v.join('、') : (v == null ? '' : String(v));
+        const songNameById = (id) => id === '__MC__' ? 'MC' : (db.value.songs.find(x => x.ID === id)?.曲名 || id);
+        const describeChange = (c) => {
+          const [name, table, group] = AI_KIND[c.kind] || ['不明な変更', '', ''];
+          const rowsOf = { lives: db.value.lives, songs: db.value.songs, studios: db.value.studios }[table] || [];
+          const cur = c.id ? rowsOf.find(x => x.ID === c.id) : null;
+          const label = c.label || (cur ? (cur.ライブタイトル || cur.曲名 || cur.日にち || '') : '');
+          const title = `${name}${label ? ': ' + label : ''}`;
+          if (c.kind === 'set_setlist') {
+            return { title, rows: [{ k: '曲順', after: (c.values.songIds || []).map(songNameById).join(' → ') }] };
+          }
+          const rows = Object.entries(pick(c.values, AI_FIELDS[group] || [])).map(([k, v]) =>
+            ({ k, after: showVal(v), ...(cur ? { before: showVal(cur[k]) } : {}) }));
+          return { title, rows };
+        };
+        const scrollAi = () => nextTick(() => { const el = aiScroll.value; if (el) el.scrollTop = el.scrollHeight; });
+        const sendAi = async (preset) => {
+          const text = (preset || aiInput.value).trim();
+          if (!text || aiLoading.value) return;
+          aiInput.value = '';
+          aiMessages.value.push({ role: 'user', text });
+          aiLoading.value = true; scrollAi();
+          try {
+            const res = await fetch(`${SUPABASE_URL}/functions/v1/band-ai`, {
+              method: 'POST',
+              headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ messages: aiMessages.value.map(m => ({ role: m.role, text: m.text })) })
+            });
+            const out = await res.json();
+            aiMessages.value.push({ role: 'ai', text: out.reply || 'うまく答えられませんでした。', proposal: out.proposal || null, status: '' });
+          } catch (err) {
+            aiMessages.value.push({ role: 'ai', text: '通信に失敗しました。時間をおいてもう一度お試しください。' });
+          } finally { aiLoading.value = false; scrollAi(); }
+        };
+        const applyProposal = async (m) => {
+          aiLoading.value = true; m.error = '';
+          try {
+            for (const c of m.proposal.changes) {
+              const meta = AI_KIND[c.kind];
+              if (!meta) throw new Error('未対応の変更です: ' + c.kind);
+              const group = meta[2];
+              if (c.kind === 'set_setlist') {
+                if (!db.value.lives.some(l => l.ID === c.id)) throw new Error('対象のライブが見つかりません');
+                const ids = (c.values.songIds || []).filter(id => id === '__MC__' || db.value.songs.some(s => s.ID === id));
+                await callApi('saveSetlist', { liveId: c.id, setlist: ids });
+              } else if (group === 'guest') {
+                if (!db.value.lives.some(l => l.ID === c.id)) throw new Error('対象のライブが見つかりません');
+                await callApi('saveGuest', { ...pick(c.values, AI_FIELDS.guest), ライブID: c.id });
+              } else {
+                const rows = { lives: db.value.lives, songs: db.value.songs, studios: db.value.studios }[meta[1]];
+                const apiName = { live: 'saveLive', song: 'saveSong', studio: 'saveStudio' }[group];
+                const vals = pick(c.values, AI_FIELDS[group]);
+                if (c.kind.startsWith('update_')) {
+                  const cur = rows.find(x => x.ID === c.id);
+                  if (!cur) throw new Error('対象が見つかりません');
+                  await callApi(apiName, { ...cur, ...vals });
+                } else {
+                  await callApi(apiName, { ID: '', ...(group === 'live' ? { ステータス: '参加' } : {}), ...vals });
+                }
+              }
+            }
+            m.status = 'done';
+            await loadData();
+          } catch (err) { m.error = err.message; }
+          finally { aiLoading.value = false; }
+        };
+
         const adminTab = ref('sns');
         const showSnsModal = ref(false);
         const editSns = ref({});
@@ -1809,7 +2010,7 @@
           showPlotEditor, plotActiveId, plotMemo, openMasterPlot, closePlotEditor,
           addFabricRect, addFabricCircle, addFabricMic, deleteSelected, clearAll,
           savePlot, resetToMaster, exportPdf, getLiveName,
-          adminTab, showSnsModal, editSns, showPasswords, togglePwd, copyText, openSnsModal, saveSns,
+          editKnowledge, saveKnowledge, removeKnowledge, aiOpen, aiInput, aiLoading, aiMessages, aiScroll, aiChips, sendAi, applyProposal, describeChange, adminTab, showSnsModal, editSns, showPasswords, togglePwd, copyText, openSnsModal, saveSns,
           newMember, addMember, removeMember, shareOnLine
         };
       }
