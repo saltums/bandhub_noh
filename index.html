@@ -1385,7 +1385,6 @@
           { id: 'lives', title: 'ライブ管理', subtitle: 'セット、ゲスト、タイムスケール', icon: 'fas fa-calendar-check', colorClass: 'from-emerald-500 to-teal-600' },
           { id: 'studios', title: 'スタジオ管理', subtitle: '練習予定と参考動画の確認', icon: 'fas fa-microphone-alt', colorClass: 'from-amber-500 to-orange-500' },
           { id: 'masterplot', title: 'マスターセット図', subtitle: '基本となるPA向け機材図の作成', icon: 'fas fa-project-diagram', colorClass: 'from-orange-500 to-red-500' },
-          { id: 'game', title: 'ミニゲーム', subtitle: 'OGURA the DIVER — 15秒でどこまで潜れる？', icon: 'fas fa-water', colorClass: 'from-cyan-500 to-blue-600' },
           { id: 'url:https://script.google.com/macros/s/AKfycby0GpJNqC_10Rd9vOLE19LoFcopLW0Lc31izxJ7qwtXPEocAjWPsUqjAsy84uKDADFw/exec', title: '物販アプリ', subtitle: '物販POSを開きます', icon: 'fas fa-external-link-alt', colorClass: 'from-purple-500 to-violet-600' }
         ]);
 
@@ -1393,7 +1392,6 @@
 
         const clickMenu = (id) => {
           if (id.startsWith('url:')) { window.open(id.slice(4), '_blank'); return; }
-          if (id === 'game') { location.href = 'game.html'; return; }
           if (id === 'masterplot') openMasterPlot('MASTER');
           else currentPage.value = id;
         };
