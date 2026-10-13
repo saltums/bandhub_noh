@@ -19,6 +19,9 @@
     .canvas-container { margin: 0 auto; border: 1px dashed #cbd5e1; background: #fff; }
     .hide-scrollbar::-webkit-scrollbar { display: none; }
     .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    @keyframes game-sway { 0%,100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-5px) rotate(2deg); } }
+    .game-fab { animation: game-sway 3.2s ease-in-out infinite; transform-origin: 50% 60%; }
+    .game-fab:active { animation-play-state: paused; }
   </style>
 </head>
 
@@ -1188,7 +1191,7 @@
           <i class="fas fa-wand-magic-sparkles text-lg"></i>
         </button>
         <a href="game.html" aria-label="ミニゲーム OGURA the DIVER"
-          class="pointer-events-auto float-left ml-4 h-12 pl-3 pr-4 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-xl flex items-center gap-2 active:scale-95 transition">
+          class="game-fab pointer-events-auto float-left ml-4 h-12 pl-3 pr-4 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-xl flex items-center gap-2 active:scale-95 transition">
           <i class="fas fa-gamepad text-lg"></i><span class="text-xs font-black leading-tight">ミニゲーム<br><span class="font-bold opacity-90">潜れ!</span></span>
         </a>
       </div>
