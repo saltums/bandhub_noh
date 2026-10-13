@@ -112,7 +112,7 @@ function thud(){tone(55,.25,'square',.3,300);tone(40,.35,'sawtooth',.25,200)}
 function blip(){tone(880,.1,'triangle',.12,3000)}
 function buzz(ms){try{if(navigator.vibrate)navigator.vibrate(ms)}catch(e){}}
 
-// ---- BGM: チップチューン (G#2 G#3 F#3 C#3 D#3 B3 A#3 B3 C#3 D#3)
+// ---- BGM: 水中チップチューン (G#2 G#3 F#3 C#3 D#3 B3 A#3 B3 C#3 D#3)
 const RIFF=[103.83,207.65,185.00,138.59,155.56,246.94,233.08,246.94,138.59,155.56].map((f,i)=>f);
 RIFF[8]=138.59;RIFF[9]=155.56;
 let bgm=null;
@@ -120,28 +120,35 @@ function noiseBuf(){const n=AC.sampleRate*.3,bf=AC.createBuffer(1,n,AC.sampleRat
 function bgmNote(t,f,dur,type,vol,dest){const o=AC.createOscillator(),g=AC.createGain();o.type=type;o.frequency.setValueAtTime(f,t);g.gain.setValueAtTime(0.0001,t);g.gain.linearRampToValueAtTime(vol,t+.006);g.gain.setValueAtTime(vol*.8,t+dur*.6);g.gain.linearRampToValueAtTime(0.0001,t+dur);o.connect(g);g.connect(dest);o.start(t);o.stop(t+dur+.02)}
 function bgmNoise(t,dur,vol,hp,dest){const s=AC.createBufferSource(),g=AC.createGain(),fl=AC.createBiquadFilter();s.buffer=bgm.nb;fl.type='highpass';fl.frequency.value=hp;g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);s.connect(fl);fl.connect(g);g.connect(dest);s.start(t);s.stop(t+dur+.02)}
 function bgmKick(t,dest){const o=AC.createOscillator(),g=AC.createGain();o.type='square';o.frequency.setValueAtTime(150,t);o.frequency.exponentialRampToValueAtTime(45,t+.12);g.gain.setValueAtTime(.22,t);g.gain.exponentialRampToValueAtTime(.001,t+.14);o.connect(g);g.connect(dest);o.start(t);o.stop(t+.16)}
+function bgmBubble(t,dest){const o=AC.createOscillator(),g=AC.createGain(),f=500+Math.random()*900;o.type='sine';o.frequency.setValueAtTime(f,t);o.frequency.exponentialRampToValueAtTime(f*1.8,t+.09);g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(.05,t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+.12);o.connect(g);g.connect(dest);o.start(t);o.stop(t+.14)}
+function bgmSwish(t,dur,dest){const s=AC.createBufferSource(),g=AC.createGain(),fl=AC.createBiquadFilter();s.buffer=bgm.nb;fl.type='lowpass';fl.Q.value=2;fl.frequency.setValueAtTime(250,t);fl.frequency.exponentialRampToValueAtTime(1400,t+dur*.6);fl.frequency.exponentialRampToValueAtTime(250,t+dur);g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(.09,t+dur*.5);g.gain.linearRampToValueAtTime(.0001,t+dur);s.connect(fl);fl.connect(g);g.connect(dest);s.start(t);s.stop(t+dur+.05)}
 function bgmStep(t,i,rush){
   const d=bgm.out,f=RIFF[i%RIFF.length],sd=bgm.step;
-  bgmNote(t,f,sd*.9,'square',.075,d);              // リード(原音)
-  bgmNote(t,f*2,sd*.9,'square',.035,d);            // 1オクターブ上(スマホ用)
-  bgmNote(t,f/2,sd*.95,'triangle',.11,d);          // ベース
-  if(rush)bgmNote(t,f*4,sd*.45,'square',.03,d);    // ラッシュ時はキラキラ
-  if(i%2===0)bgmKick(t,d);
-  else bgmNoise(t,.04,.08,6000,d);
-  if(i===3||i===7)bgmNoise(t,.1,.12,1800,d);        // スネア
+  bgmNote(t,f,sd*1.6,'triangle',.13,d);            // リード(丸い音)
+  bgmNote(t,f*2,sd*1.2,'sine',.05,d);              // 倍音(薄く)
+  bgmNote(t,f/2,sd*1.8,'sine',.16,d);              // 深いベース
+  if(i%2===0){const o=AC.createOscillator(),g=AC.createGain();o.type='sine';o.frequency.setValueAtTime(110,t);o.frequency.exponentialRampToValueAtTime(40,t+.18);g.gain.setValueAtTime(.2,t);g.gain.exponentialRampToValueAtTime(.001,t+.22);o.connect(g);g.connect(d);o.start(t);o.stop(t+.25)} // 水の底のどん
+  if(i===0||i===5)bgmSwish(t,sd*5,d);              // 波のうねり
+  if(Math.random()<.35)bgmBubble(t+sd*.5,d);       // ぷくぷく
+  if(rush)bgmNote(t,f*4,sd*.8,'sine',.05,d);       // ラッシュ時はきらめき
 }
 function bgmStart(){
   if(!AC||bgm)return;
-  const out=AC.createGain();out.gain.value=muted?0:1;out.connect(AC.destination);
-  bgm={out,nb:noiseBuf(),i:0,next:AC.currentTime+.08,step:.16,timer:0};
+  const out=AC.createGain();out.gain.value=muted?0:1;
+  // 水中フィルタ: こもった音 + ゆらぎ + 残響
+  const lp=AC.createBiquadFilter();lp.type='lowpass';lp.frequency.value=1000;lp.Q.value=.9;
+  const lfo=AC.createOscillator(),lg=AC.createGain();lfo.frequency.value=.22;lg.gain.value=380;lfo.connect(lg);lg.connect(lp.frequency);lfo.start();
+  const dl=AC.createDelay(1),fb=AC.createGain(),wet=AC.createGain(),df=AC.createBiquadFilter();dl.delayTime.value=.34;fb.gain.value=.45;wet.gain.value=.5;df.type='lowpass';df.frequency.value=900;
+  out.connect(lp);lp.connect(AC.destination);lp.connect(dl);dl.connect(df);df.connect(fb);fb.connect(dl);df.connect(wet);wet.connect(AC.destination);
+  bgm={out,lfo,nb:noiseBuf(),i:0,next:AC.currentTime+.08,step:.19,timer:0};
   bgm.timer=setInterval(()=>{
     if(!bgm||state!=='play')return;
     const rush=S&&S.rush>0,dp=S?S.depth:0;
-    bgm.step=.16/(1+Math.min(dp,200)/250)*(rush?.7:1);
+    bgm.step=.19/(1+Math.min(dp,200)/300)*(rush?.75:1);
     while(bgm.next<AC.currentTime+.15){bgmStep(bgm.next,bgm.i,rush);bgm.i=(bgm.i+1)%RIFF.length;bgm.next+=bgm.step}
   },25);
 }
-function bgmStop(){if(!bgm)return;const o=bgm;bgm=null;clearInterval(o.timer);try{o.out.gain.setValueAtTime(o.out.gain.value,AC.currentTime);o.out.gain.linearRampToValueAtTime(0,AC.currentTime+.25);setTimeout(()=>{try{o.out.disconnect()}catch(e){}},400)}catch(e){}}
+function bgmStop(){if(!bgm)return;const o=bgm;bgm=null;clearInterval(o.timer);try{o.out.gain.setValueAtTime(o.out.gain.value,AC.currentTime);o.out.gain.linearRampToValueAtTime(0,AC.currentTime+.25);setTimeout(()=>{try{o.out.disconnect();o.lfo.stop()}catch(e){}},1500)}catch(e){}}
 document.addEventListener('visibilitychange',()=>{if(!AC)return;try{document.hidden?AC.suspend():AC.resume()}catch(e){}});
 const GOLD_RATE=.08;
 const TMAX=30, RUSH_CHANCE=.12, RUSH_RATE=.7;
