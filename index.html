@@ -131,6 +131,10 @@
                 <input type="search" v-model="liveSearch" placeholder="タイトル・会場・対バンで検索"
                   class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm">
                 <div class="flex items-center gap-2 text-xs">
+                  <select v-model="liveYear" class="bg-gray-50 border border-gray-300 rounded-lg px-2 py-1">
+                    <option value="">全期間</option>
+                    <option v-for="y in liveYears" :key="y" :value="y">{{ y }}年</option>
+                  </select>
                   <select v-model="liveEra" class="bg-gray-50 border border-gray-300 rounded-lg px-2 py-1">
                     <option value="">すべての時代</option>
                     <option value="noh">noh</option>
@@ -1339,10 +1343,17 @@
         // 新しい順（降順）
         const liveSearch = ref('');
         const liveEra = ref('');
+        const liveYear = ref(String(new Date().getFullYear()));
+        const liveYears = computed(() => {
+          const ys = new Set(db.value.lives.map(l => String(l.日にち || '').slice(0, 4)).filter(Boolean));
+          ys.add(String(new Date().getFullYear()));
+          return [...ys].sort((a, b) => b.localeCompare(a));
+        });
         const actsOf = (live) => Array.isArray(live.対バン) ? live.対バン : [];
         const sortedLivesDesc = computed(() => {
           const q = liveSearch.value.trim().toLowerCase();
           return [...db.value.lives]
+            .filter(l => !liveYear.value || String(l.日にち || '').startsWith(liveYear.value))
             .filter(l => !liveEra.value || (liveEra.value === 'now' ? !l.時代 || l.時代 === 'noh' : l.時代 === liveEra.value))
             .filter(l => !q || [l.ライブタイトル, l.ライブ場所, l.日にち, l.備考, actsOf(l).join(' ')].join(' ').toLowerCase().includes(q))
             .sort((a, b) => new Date(b.日にち) - new Date(a.日にち));
@@ -1786,7 +1797,7 @@
           currentPage, loading, saving, goHome, menuOrder, clickMenu, db,
           songSearchQuery, filteredSongs, showSongModal, editSong, openSongModal, saveSong,
           newSongVideo, getSongVideos, getMemberName, addSongVideo, removeSongVideo,
-          liveViewMode, calendarYear, sortedLivesDesc, formatDate, liveSearch, liveEra, actsOf, actInput, addAct, removeAct,
+          liveViewMode, calendarYear, sortedLivesDesc, formatDate, liveSearch, liveEra, liveYear, liveYears, actsOf, actInput, addAct, removeAct,
           getLivesInMonth, hasLiveMonth, getStudiosInMonth, hasStudioMonth, sortedMonths, uniqueVenues,
           studioYear, studioMonth, changeStudioMonth, getStudiosInExactMonth, uniqueStudioVenues,
           showStudioModal, editStudio, openStudioModal, saveStudio, toggleStudioMember,
