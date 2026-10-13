@@ -151,7 +151,7 @@ function bgmStart(){
 function bgmStop(){if(!bgm)return;const o=bgm;bgm=null;clearInterval(o.timer);try{o.out.gain.setValueAtTime(o.out.gain.value,AC.currentTime);o.out.gain.linearRampToValueAtTime(0,AC.currentTime+.25);setTimeout(()=>{try{o.out.disconnect();o.lfo.stop()}catch(e){}},1500)}catch(e){}}
 document.addEventListener('visibilitychange',()=>{if(!AC)return;try{document.hidden?AC.suspend():AC.resume()}catch(e){}});
 const GOLD_RATE=.08;
-const TMAX=30, HARD=40, GOLD_MAX=3, DEPTH_MAX=400, RUSH_CHANCE=.12, RUSH_RATE=.7;
+const TMAX=30, HARD=40, GOLD_MAX=3, DEPTH_MAX=1000000, RUSH_CHANCE=.12, RUSH_RATE=.7;
 const LIMIT=15, PXM=26;
 const ITEM_KINDS=[{k:'item_tank',w:3,m:'酸素ボンベ！ +12m'},{k:'item_string',w:4,m:'弦ゲット +4m'},{k:'item_star',w:2,m:'ステージダイブ！ 4秒ダブル'},{k:'item_clock',w:2,m:'時計 +2秒'},{k:'item_bad',w:3,m:'ハウリング… 浮かされた'}];
 const OBS=[{k:'ob_cable',w:78,h:39},{k:'ob_speaker',w:54,h:72},{k:'ob_amp',w:64,h:55}];
