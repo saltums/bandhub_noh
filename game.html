@@ -111,7 +111,7 @@ function goldRiff(){if(!AC||muted)return;const n=[41.2,49,55,61.7,73.4,82.4,98,1
 function thud(){tone(55,.25,'square',.3,300);tone(40,.35,'sawtooth',.25,200)}
 function blip(){tone(880,.1,'triangle',.12,3000)}
 function buzz(ms){try{if(navigator.vibrate)navigator.vibrate(ms)}catch(e){}}
-const GOLD_RATE=.5; // テスト用に高め(本番は .08 くらい)
+const GOLD_RATE=.08;
 const LIMIT=15, PXM=26;
 const ITEM_KINDS=[{k:'item_tank',w:3,m:'酸素ボンベ！ +12m'},{k:'item_string',w:4,m:'弦ゲット +4m'},{k:'item_star',w:2,m:'ステージダイブ！ 4秒ダブル'},{k:'item_clock',w:2,m:'時計 +2秒'},{k:'item_bad',w:3,m:'ハウリング… 浮かされた'}];
 const OBS=[{k:'ob_cable',w:78,h:39},{k:'ob_speaker',w:54,h:72},{k:'ob_amp',w:64,h:55}];
