@@ -151,7 +151,7 @@ function bgmStart(){
 function bgmStop(){if(!bgm)return;const o=bgm;bgm=null;clearInterval(o.timer);try{o.out.gain.setValueAtTime(o.out.gain.value,AC.currentTime);o.out.gain.linearRampToValueAtTime(0,AC.currentTime+.25);setTimeout(()=>{try{o.out.disconnect();o.lfo.stop()}catch(e){}},1500)}catch(e){}}
 document.addEventListener('visibilitychange',()=>{if(!AC)return;try{document.hidden?AC.suspend():AC.resume()}catch(e){}});
 const GOLD_RATE=.08;
-const TMAX=30, RUSH_CHANCE=.12, RUSH_RATE=.7;
+const TMAX=30, HARD=45, DEPTH_MAX=400, RUSH_CHANCE=.12, RUSH_RATE=.7;
 const LIMIT=15, PXM=26;
 const ITEM_KINDS=[{k:'item_tank',w:3,m:'酸素ボンベ！ +12m'},{k:'item_string',w:4,m:'弦ゲット +4m'},{k:'item_star',w:2,m:'ステージダイブ！ 4秒ダブル'},{k:'item_clock',w:2,m:'時計 +2秒'},{k:'item_bad',w:3,m:'ハウリング… 浮かされた'}];
 const OBS=[{k:'ob_cable',w:78,h:39},{k:'ob_speaker',w:54,h:72},{k:'ob_amp',w:64,h:55}];
@@ -166,9 +166,10 @@ function spawn(){
   else{const o=OBS[Math.floor(Math.random()*OBS.length)];S.objs.push({type:'ob',k:o.k,x,d:S.depth+34,w:o.w,h:o.h})}
   S.nextSpawn=S.depth+34+ (4+Math.random()*7);
 }
+function addTime(sec){S.bonusN=(S.bonusN||0);const g=Math.round(sec*Math.max(.2,1-.2*S.bonusN)*10)/10;S.bonusN++;S.t=Math.min(TMAX,S.t+g);return g}
 function popText(txt,x,y,col){S.pop.push({txt,x,y,t:0,col:col||'#fde68a'})}
 function update(dt){
-  S.time+=dt;S.t-=dt;if(S.t<=0){S.t=0;endGame();return}
+  S.time+=dt;S.t-=dt;S.t=Math.min(S.t,HARD-S.time);if(S.t<=0){S.t=0;endGame();return}
   let vt=5+S.time*.18;if(S.dbl>0)vt*=2;if(S.slow>0)vt*=.3;
   S.v+=(vt-S.v)*Math.min(1,dt*4);
   S.depth=Math.max(0,S.depth+S.v*dt);
@@ -199,11 +200,11 @@ function applyItem(o,x,y){
   sparkle();noteUp(S.combo);S.combo++;S.maxCombo=Math.max(S.maxCombo,S.combo);buzz(15);
   const cb=S.combo>=3?Math.min(S.combo-2,5):0;S.depth+=cb;
   const cbTxt=S.combo>=2?'  COMBO x'+S.combo+(cb?' +'+cb+'m':''):'';
-  if(k==='item_gold'){S.rush=1.7;S.rushT=1.7;S.t=Math.min(TMAX,S.t+3);S.inv=Math.max(S.inv,1.9);S.shake=1.7;S.slow=0;S.dbl=0;for(let n=0;n<60;n++){const a=Math.random()*6.28;S.spark.push({x,y,vx:Math.cos(a)*(80+Math.random()*260),vy:Math.sin(a)*(80+Math.random()*260),t:0})}buzz([60,40,60,40,200]);goldRiff();popText('★ GOLD DIVE!! +100m ＆ +3秒 ★',W/2,y-70,'#fde047');return}
+  if(k==='item_gold'){S.rush=1.7;S.rushT=1.7;const gt=addTime(3);S.inv=Math.max(S.inv,1.9);S.shake=1.7;S.slow=0;S.dbl=0;for(let n=0;n<60;n++){const a=Math.random()*6.28;S.spark.push({x,y,vx:Math.cos(a)*(80+Math.random()*260),vy:Math.sin(a)*(80+Math.random()*260),t:0})}buzz([60,40,60,40,200]);goldRiff();popText('★ GOLD DIVE!! +100m ＆ +'+gt+'秒 ★',W/2,y-70,'#fde047');return}
   if(k==='item_tank'){S.depth+=12;popText('酸素ボンベ！ +12m'+cbTxt,x,y-40)}
   else if(k==='item_string'){S.depth+=4;popText('弦ゲット +4m'+cbTxt,x,y-40)}
   else if(k==='item_star'){S.dbl=4;popText('ステージダイブ！ 4秒ダブル'+cbTxt,x,y-40,'#f9a8d4')}
-  else if(k==='item_clock'){S.t=Math.min(TMAX,S.t+2);popText('時計 +2秒'+cbTxt,x,y-40,'#a7f3d0')}
+  else if(k==='item_clock'){const ct=addTime(2);popText('時計 +'+ct+'秒'+cbTxt,x,y-40,'#a7f3d0')}
 }
 function bgColors(d){
   const stops=[[0,[56,189,248],[14,116,144]],[40,[14,116,144],[12,74,110]],[90,[30,27,75],[49,22,110]],[150,[76,29,149],[127,29,29]]];
@@ -290,7 +291,7 @@ function startGame(){audioOn();
   reset();S.goldRate=Math.random()<RUSH_CHANCE?RUSH_RATE:GOLD_RATE;if(S.goldRate===RUSH_RATE){popText('✨ ゴールドベース・ラッシュ！ よく出るぞ ✨',W/2,H*.55,'#fde047');S.pop[0].t=-.8}state='play';bgmStart();$('start').classList.add('hide');$('end').classList.add('hide');$('hud').classList.remove('hide');
 }
 async function endGame(){
-  state='over';bgmStop();const depth=Math.floor(S.depth*10)/10;
+  state='over';bgmStop();const depth=Math.min(DEPTH_MAX,Math.floor(S.depth*10)/10);
   $('fin').textContent=Math.floor(depth);
   let nb=false;const b=bestLocal();if(depth>b){nb=true;try{localStorage.setItem('bh_game_best',String(depth))}catch(e){}}
   $('endmsg').textContent=nb?'🎉 自己ベスト更新！':'タイムアップ！';
@@ -317,7 +318,7 @@ $('nm').addEventListener('keydown',e=>{if(e.key==='Enter')startGame()});
     ['item_tank','good','酸素ボンベ','+12m 一気に潜る'],
     ['item_string','good','ベースの弦','+4m'],
     ['item_star','good','ステージダイブ','4秒間、2倍の速さ'],
-    ['item_clock','good','時計','残り時間 +2秒'],
+    ['item_clock','good','時計','残り時間 +2秒(取るほど増え幅は減る/最大30秒)'],
     ['h','⚠ 赤い枠 = よける'],
     ['item_bad','bad','ハウリング(赤い×)','取ると -6m・減速'],
     ['ob_amp','bad','アンプ・スピーカー・ケーブル','ぶつかると -4m・減速'],
