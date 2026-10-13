@@ -31,10 +31,10 @@
 <div id="wrap"><div id="stage">
   <canvas id="cv"></canvas>
   <div class="hud" id="hud"><div><small>のこり</small><span class="big" id="tm">15.0</span></div><div style="text-align:right"><small>深さ</small><span class="big"><span id="dp">0</span><span style="font-size:16px">m</span></span></div></div>
-  <a class="back" href="index.html">← アプリへ戻る</a>
+  <button class="back" id="mute" style="right:12px;left:auto;border:0">🔊</button><a class="back" href="index.html">← アプリへ戻る</a>
   <div class="panel" id="start">
     <h1>OGURA <span>the DIVER</span></h1>
-    <div class="msg">15秒でどこまで潜れる？<br>指をスライドして左右に動かし、<br>障害物をよけてアイテムを取ろう！</div>
+    <div class="msg">15秒でどこまで潜れる？<br>指をスライドして左右に動かそう<br>✨光るものは取る ⚠赤い枠はよける<br>続けて取るとベースが鳴ってコンボ！<br>障害物すれすれは「ギリギリ」ボーナス</div>
     <input id="nm" maxlength="12" placeholder="なまえ" autocomplete="off">
     <button class="btn" id="go">スタート</button>
     <div class="rank" id="rk1"></div>
@@ -89,11 +89,21 @@ addEventListener('resize',resize);resize();
 const IMG={};let loaded=0;const keys=Object.keys(SPRITES);
 keys.forEach(k=>{const im=new Image();im.onload=()=>{loaded++};im.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(SPRITES[k]);IMG[k]=im});
 
+
+// ---- 音: ベースの音が鳴る (E minor ペンタ)
+let AC=null,muted=false;
+const NOTES=[41.2,49,55,61.7,73.4,82.4,98,110,123.5,146.8,164.8];
+function audioOn(){try{if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume()}catch(e){}}
+function tone(f,dur,type,vol,cut){if(!AC||muted)return;try{const t=AC.currentTime,o=AC.createOscillator(),g=AC.createGain(),fl=AC.createBiquadFilter();o.type=type||'sawtooth';o.frequency.value=f;fl.type='lowpass';fl.frequency.setValueAtTime(cut||900,t);fl.frequency.exponentialRampToValueAtTime(180,t+dur);g.gain.setValueAtTime(vol||.28,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);o.connect(fl);fl.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+dur+.02)}catch(e){}}
+function noteUp(i){const f=NOTES[Math.min(i,NOTES.length-1)];tone(f*2,.32,'sawtooth',.26,1400);tone(f*4,.12,'triangle',.07,2400)}
+function thud(){tone(55,.25,'square',.3,300);tone(40,.35,'sawtooth',.25,200)}
+function blip(){tone(880,.1,'triangle',.12,3000)}
+function buzz(ms){try{if(navigator.vibrate)navigator.vibrate(ms)}catch(e){}}
 const LIMIT=15, PXM=26;
 const ITEM_KINDS=[{k:'item_tank',w:3,m:'酸素ボンベ！ +12m'},{k:'item_string',w:4,m:'弦ゲット +4m'},{k:'item_star',w:2,m:'ステージダイブ！ 4秒ダブル'},{k:'item_clock',w:2,m:'時計 +2秒'},{k:'item_bad',w:3,m:'ハウリング… 浮かされた'}];
 const OBS=[{k:'ob_cable',w:78,h:39},{k:'ob_speaker',w:54,h:72},{k:'ob_amp',w:64,h:55}];
 let S=null, state='idle', last=0;
-function reset(){S={t:LIMIT,depth:0,v:0,time:0,objs:[],nextSpawn:6,bubbles:[],dbl:0,inv:0,slow:0,pop:[],shake:0,items:0,tx:W/2,dx:W/2};
+function reset(){S={t:LIMIT,depth:0,v:0,time:0,objs:[],nextSpawn:6,bubbles:[],dbl:0,inv:0,slow:0,pop:[],shake:0,items:0,combo:0,maxCombo:0,near:0,spark:[],tx:W/2,dx:W/2};
   for(let i=0;i<22;i++)S.bubbles.push({x:Math.random()*W,y:Math.random()*H,r:2+Math.random()*5,s:10+Math.random()*30})}
 function pickItem(){const tot=ITEM_KINDS.reduce((a,b)=>a+b.w,0);let r=Math.random()*tot;for(const it of ITEM_KINDS){if((r-=it.w)<=0)return it}return ITEM_KINDS[0]}
 function spawn(){
@@ -116,23 +126,28 @@ function update(dt){
     const o=S.objs[i];const y=dy+(o.d-S.depth)*PXM;o.y=y;
     if(y<-120){S.objs.splice(i,1);continue}
     if(o.hit)continue;
+    if(o.type==='ob'&&!o.passed&&y>dy+(o.h+40)/2*.7){o.passed=true;const gap=Math.abs(o.x-dx),lim=(o.w+60)/2*.7;if(gap>=lim&&gap<lim+26){S.depth+=3;S.near++;blip();popText('ギリギリ！ +3m',dx,dy-62,'#fef08a')}}
     const hw=(o.w+60)/2*.7, hh=(o.h+60)/2*.7;
     if(Math.abs(o.x-dx)<hw&&Math.abs(y-dy)<hh){
       if(o.type==='item'){o.hit=true;S.objs.splice(i,1);applyItem(o,dx,dy)}
-      else if(S.inv<=0){S.inv=1;S.slow=.9;S.shake=.3;S.depth=Math.max(0,S.depth-4);popText('ガツン！ -4m',dx,dy-40,'#fca5a5')}
+      else if(S.inv<=0){S.inv=1;S.slow=.9;S.shake=.3;S.depth=Math.max(0,S.depth-4);S.combo=0;thud();buzz(80);popText('ガツン！ -4m',dx,dy-40,'#fca5a5')}
     }
   }
-  S.pop.forEach(p=>p.t+=dt);S.pop=S.pop.filter(p=>p.t<1.1);
+  S.spark.forEach(p=>{p.t+=dt;p.x+=p.vx*dt;p.y+=p.vy*dt});S.spark=S.spark.filter(p=>p.t<.6);S.pop.forEach(p=>p.t+=dt);S.pop=S.pop.filter(p=>p.t<1.1);
   S.bubbles.forEach(b=>{b.y-=b.s*dt*(1+S.v*.25);if(b.y<-10){b.y=H+10;b.x=Math.random()*W}});
   $('tm').textContent=S.t.toFixed(1);$('dp').textContent=Math.floor(S.depth);
 }
 function applyItem(o,x,y){
   const k=o.k;S.items++;
-  if(k==='item_tank'){S.depth+=12;popText('酸素ボンベ！ +12m',x,y-40)}
-  else if(k==='item_string'){S.depth+=4;popText('弦ゲット +4m',x,y-40)}
-  else if(k==='item_star'){S.dbl=4;popText('ステージダイブ！ 4秒ダブル',x,y-40,'#f9a8d4')}
-  else if(k==='item_clock'){S.t+=2;popText('時計 +2秒',x,y-40,'#a7f3d0')}
-  else{S.depth=Math.max(0,S.depth-6);S.slow=.9;S.shake=.25;popText('ハウリング… -6m',x,y-40,'#fca5a5')}
+  const sparkle=()=>{for(let i=0;i<10;i++){const a=Math.random()*6.28;S.spark.push({x,y,vx:Math.cos(a)*(40+Math.random()*80),vy:Math.sin(a)*(40+Math.random()*80),t:0})}};
+  if(k==='item_bad'){S.depth=Math.max(0,S.depth-6);S.slow=.9;S.shake=.25;S.combo=0;thud();buzz(80);popText('ハウリング… -6m',x,y-40,'#fca5a5');return}
+  sparkle();noteUp(S.combo);S.combo++;S.maxCombo=Math.max(S.maxCombo,S.combo);buzz(15);
+  const cb=S.combo>=3?Math.min(S.combo-2,5):0;S.depth+=cb;
+  const cbTxt=S.combo>=2?'  COMBO x'+S.combo+(cb?' +'+cb+'m':''):'';
+  if(k==='item_tank'){S.depth+=12;popText('酸素ボンベ！ +12m'+cbTxt,x,y-40)}
+  else if(k==='item_string'){S.depth+=4;popText('弦ゲット +4m'+cbTxt,x,y-40)}
+  else if(k==='item_star'){S.dbl=4;popText('ステージダイブ！ 4秒ダブル'+cbTxt,x,y-40,'#f9a8d4')}
+  else if(k==='item_clock'){S.t+=2;popText('時計 +2秒'+cbTxt,x,y-40,'#a7f3d0')}
 }
 function bgColors(d){
   const stops=[[0,[56,189,248],[14,116,144]],[40,[14,116,144],[12,74,110]],[90,[30,27,75],[49,22,110]],[150,[76,29,149],[127,29,29]]];
@@ -155,8 +170,20 @@ function draw(){
   const dy=H*.34;ctx.fillStyle='rgba(255,255,255,.35)';ctx.font='bold 11px sans-serif';ctx.textAlign='left';
   for(let m=Math.floor(d/10)*10;m<d+40;m+=10){const y=dy+(m-d)*PXM;if(m>0){ctx.fillRect(0,y,18,2);ctx.fillText(m+'m',22,y+4)}}
   S.objs.forEach(o=>{const im=IMG[o.k];if(!im.complete)return;
-    if(o.type==='item'){const s=1+Math.sin(S.time*6+o.d)*.06;ctx.save();ctx.translate(o.x,o.y);ctx.scale(s,s);ctx.drawImage(im,-o.w/2,-o.h/2,o.w,o.h);ctx.restore()}
-    else ctx.drawImage(im,o.x-o.w/2,o.y-o.h/2,o.w,o.h)});
+    if(o.type==='item'){
+      const bob=Math.sin(S.time*5+o.d)*4, pr=1+Math.sin(S.time*7+o.d)*.12, bad=o.k==='item_bad';
+      const gr=ctx.createRadialGradient(o.x,o.y+bob,2,o.x,o.y+bob,34*pr);
+      gr.addColorStop(0,bad?'rgba(248,113,113,.55)':'rgba(253,224,71,.85)');gr.addColorStop(1,'rgba(253,224,71,0)');
+      ctx.fillStyle=gr;ctx.beginPath();ctx.arc(o.x,o.y+bob,36*pr,0,7);ctx.fill();
+      ctx.save();ctx.translate(o.x,o.y+bob);ctx.scale(pr,pr);ctx.drawImage(im,-o.w/2,-o.h/2,o.w,o.h);ctx.restore();
+      if(!bad){ctx.fillStyle='#fff';const a=S.time*3+o.d;for(let i=0;i<3;i++){const aa=a+i*2.1;ctx.fillRect(o.x+Math.cos(aa)*26-1.5,o.y+bob+Math.sin(aa)*26-1.5,3,3)}}
+    } else {
+      const warn=o.y<(H*.34+260)&&o.y>H*.34-40;
+      ctx.save();ctx.shadowColor='#ef4444';ctx.shadowBlur=warn?14+Math.sin(S.time*14)*8:6;
+      ctx.drawImage(im,o.x-o.w/2,o.y-o.h/2,o.w,o.h);ctx.restore();
+      if(warn){ctx.fillStyle='#fca5a5';ctx.font='900 14px sans-serif';ctx.textAlign='center';ctx.fillText('⚠',o.x,o.y-o.h/2-6)}
+    }});
+  S.spark.forEach(p=>{ctx.globalAlpha=1-p.t/.6;ctx.fillStyle='#fde68a';ctx.fillRect(p.x-2,p.y-2,4,4)});ctx.globalAlpha=1;
   // diver
   const x=S.dx, y=dy, im=IMG.diver0, w=120, h=w*64/80;
   if(!(S.inv>0&&Math.floor(S.time*20)%2)){
@@ -168,6 +195,7 @@ function draw(){
   // popups
   ctx.textAlign='center';ctx.font='900 16px sans-serif';
   S.pop.forEach(p=>{ctx.globalAlpha=1-p.t/1.1;ctx.fillStyle='#000';ctx.fillText(p.txt,p.x+1,p.y-p.t*40+1);ctx.fillStyle=p.col;ctx.fillText(p.txt,p.x,p.y-p.t*40)});ctx.globalAlpha=1;
+  if(S.combo>=2){ctx.fillStyle='#fde68a';ctx.font='900 20px sans-serif';ctx.textAlign='center';ctx.fillText('COMBO x'+S.combo,W/2,H-60)}
   if(S.dbl>0){ctx.fillStyle='rgba(244,114,182,.9)';ctx.font='900 14px sans-serif';ctx.fillText('★ DOUBLE '+S.dbl.toFixed(1)+'s',W/2,H-24)}
   ctx.restore();
 }
@@ -189,7 +217,7 @@ async function ranking(el,mine){
 }
 function myName(){return ($('nm').value||'').trim().slice(0,12)}
 function bestLocal(){return Number(localStorage.getItem('bh_game_best')||0)}
-function startGame(){
+function startGame(){audioOn();
   const n=myName();if(!n){$('nm').focus();$('nm').style.borderColor='#f87171';return}
   try{localStorage.setItem('bh_game_name',n)}catch(e){}
   reset();state='play';$('start').classList.add('hide');$('end').classList.add('hide');$('hud').classList.remove('hide');
@@ -199,7 +227,7 @@ async function endGame(){
   $('fin').textContent=Math.floor(depth);
   let nb=false;const b=bestLocal();if(depth>b){nb=true;try{localStorage.setItem('bh_game_best',String(depth))}catch(e){}}
   $('endmsg').textContent=nb?'🎉 自己ベスト更新！':'タイムアップ！';
-  $('best').textContent='自己ベスト '+Math.floor(Math.max(b,depth))+'m ／ アイテム '+S.items+'個';
+  $('best').textContent='自己ベスト '+Math.floor(Math.max(b,depth))+'m ／ アイテム '+S.items+'個 ／ 最大コンボ '+S.maxCombo+' ／ ギリギリ '+S.near+'回';
   $('end').classList.remove('hide');
   const n=myName();
   try{await api('game_scores',{method:'POST',headers:{apikey:SUPABASE_KEY,Authorization:'Bearer '+SUPABASE_KEY,'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({name:n,depth})})}catch(e){}
@@ -209,8 +237,9 @@ function setTx(e){if(state!=='play')return;const r=cv.getBoundingClientRect();S.
 cv.addEventListener('pointerdown',e=>{e.preventDefault();try{cv.setPointerCapture(e.pointerId)}catch(_){}setTx(e)});
 cv.addEventListener('pointermove',e=>{e.preventDefault();setTx(e)});
 addEventListener('keydown',e=>{if(state!=='play')return;const st=W*.12;if(e.code==='ArrowLeft')S.tx=Math.max(24,S.tx-st);if(e.code==='ArrowRight')S.tx=Math.min(W-24,S.tx+st)});
+$('mute').addEventListener('click',()=>{muted=!muted;$('mute').textContent=muted?'🔇':'🔊'});
 $('go').addEventListener('click',startGame);
-$('again').addEventListener('click',()=>{$('end').classList.add('hide');reset();state='play'});
+$('again').addEventListener('click',()=>{audioOn();$('end').classList.add('hide');reset();state='play'});
 try{$('nm').value=localStorage.getItem('bh_game_name')||''}catch(e){}
 $('nm').addEventListener('keydown',e=>{if(e.key==='Enter')startGame()});
 reset();state='idle';ranking($('rk1'),myName());
