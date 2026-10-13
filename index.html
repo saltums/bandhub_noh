@@ -325,9 +325,22 @@
                 </div>
 
                 <div class="mb-4">
-                  <label class="text-xs font-bold text-gray-500 block mb-1">対バン (、区切り)</label>
-                  <textarea rows="2" :value="actsOf(activeLive).join('、')" @input="setActs(activeLive, $event.target.value)"
-                    class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm"></textarea>
+                  <label class="text-xs font-bold text-gray-500 block mb-1">対バン</label>
+                  <div class="flex flex-wrap gap-1.5 mb-2" v-if="actsOf(activeLive).length">
+                    <span v-for="(act, i) in actsOf(activeLive)" :key="act + i"
+                      class="inline-flex items-center bg-teal-50 text-teal-700 border border-teal-200 rounded-full pl-3 pr-1 py-1 text-xs font-bold">
+                      {{ act }}
+                      <button type="button" @click="removeAct(activeLive, i)"
+                        class="ml-1 w-5 h-5 rounded-full text-teal-500 hover:bg-teal-100 leading-none" aria-label="削除">×</button>
+                    </span>
+                  </div>
+                  <div class="flex gap-2">
+                    <input type="text" v-model="actInput" placeholder="バンド名を入力して Enter"
+                      @keydown.enter.prevent="addAct(activeLive)" @blur="addAct(activeLive)"
+                      class="flex-1 bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                    <button type="button" @click="addAct(activeLive)"
+                      class="bg-teal-600 text-white px-4 rounded-lg text-sm font-bold active:bg-teal-700">追加</button>
+                  </div>
                   <p v-if="activeLive.開場 || activeLive.開演 || activeLive.料金 || activeLive.出典" class="text-[11px] text-gray-400 mt-1">
                     <span v-if="activeLive.開場">開場 {{ activeLive.開場 }}</span>
                     <span v-if="activeLive.開演"> / 開演 {{ activeLive.開演 }}</span>
@@ -1334,7 +1347,16 @@
             .filter(l => !q || [l.ライブタイトル, l.ライブ場所, l.日にち, l.備考, actsOf(l).join(' ')].join(' ').toLowerCase().includes(q))
             .sort((a, b) => new Date(b.日にち) - new Date(a.日にち));
         });
-        const setActs = (live, text) => { live.対バン = text.split(/[、,\n]/).map(x => x.trim()).filter(Boolean); };
+        const actInput = ref('');
+        const addAct = (live) => {
+          const names = actInput.value.split(/[、,\n]/).map(x => x.trim()).filter(Boolean);
+          if (!names.length) return;
+          const cur = actsOf(live).slice();
+          names.forEach(n => { if (!cur.includes(n)) cur.push(n); });
+          live.対バン = cur;
+          actInput.value = '';
+        };
+        const removeAct = (live, i) => { const cur = actsOf(live).slice(); cur.splice(i, 1); live.対バン = cur; };
         // カレンダー用(昇順)
         const getLivesInMonth = (year, month) => {
           return db.value.lives.filter(l => {
@@ -1764,7 +1786,7 @@
           currentPage, loading, saving, goHome, menuOrder, clickMenu, db,
           songSearchQuery, filteredSongs, showSongModal, editSong, openSongModal, saveSong,
           newSongVideo, getSongVideos, getMemberName, addSongVideo, removeSongVideo,
-          liveViewMode, calendarYear, sortedLivesDesc, formatDate, liveSearch, liveEra, actsOf, setActs,
+          liveViewMode, calendarYear, sortedLivesDesc, formatDate, liveSearch, liveEra, actsOf, actInput, addAct, removeAct,
           getLivesInMonth, hasLiveMonth, getStudiosInMonth, hasStudioMonth, sortedMonths, uniqueVenues,
           studioYear, studioMonth, changeStudioMonth, getStudiosInExactMonth, uniqueStudioVenues,
           showStudioModal, editStudio, openStudioModal, saveStudio, toggleStudioMember,
