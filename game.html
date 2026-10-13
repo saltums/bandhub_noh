@@ -13,7 +13,7 @@
   .hud .big{font-size:34px;line-height:1}
   .hud small{display:block;font-size:11px;opacity:.8;font-weight:700}
   .back{position:absolute;left:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:5;color:#fff;background:rgba(0,0,0,.45);padding:8px 14px;border-radius:999px;font-size:13px;font-weight:700;text-decoration:none}
-  .panel{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:rgba(10,8,40,.78);color:#fff;text-align:center;padding:20px;z-index:4}
+  .panel{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;overflow-y:auto;gap:10px;background:rgba(10,8,40,.78);color:#fff;text-align:center;padding:20px;z-index:4}
   .panel h1{margin:0;font-size:26px;letter-spacing:.02em}
   .panel h1 span{color:#c4b5fd}
   .btn{background:linear-gradient(135deg,#7c3aed,#db2777);color:#fff;border:0;border-radius:999px;padding:14px 38px;font-size:20px;font-weight:900;box-shadow:0 8px 24px rgba(124,58,237,.5)}
@@ -22,6 +22,12 @@
   .rank{width:100%;max-width:300px;background:rgba(255,255,255,.08);border-radius:14px;padding:8px 14px;font-size:14px;text-align:left}
   .rank div{display:flex;justify-content:space-between;padding:3px 0}
   .rank b{color:#fde68a}
+  .panel>:first-child{margin-top:auto}.panel>:last-child{margin-bottom:auto}
+  .legend{width:100%;max-width:330px;background:rgba(255,255,255,.08);border-radius:14px;padding:10px 12px;text-align:left;font-size:12.5px;line-height:1.35}
+  .legend h2{margin:0 0 6px;font-size:12px;opacity:.7;font-weight:700;letter-spacing:.04em}
+  .legend .row{display:flex;align-items:center;gap:10px;padding:3px 0}
+  .legend .row img{width:28px;height:28px;object-fit:contain;flex:none}
+  .legend .good{color:#fde68a}.legend .bad{color:#fca5a5}
   .hide{display:none!important}
   .res{font-size:56px;font-weight:900;line-height:1;color:#fde68a;text-shadow:0 4px 18px rgba(219,39,119,.6)}
   .msg{font-size:13px;opacity:.85}
@@ -30,12 +36,13 @@
 <body>
 <div id="wrap"><div id="stage">
   <canvas id="cv"></canvas>
-  <div class="hud" id="hud"><div><small>のこり</small><span class="big" id="tm">15.0</span></div><div style="text-align:right"><small>深さ</small><span class="big"><span id="dp">0</span><span style="font-size:16px">m</span></span></div></div>
+  <div class="hud hide" id="hud"><div><small>のこり</small><span class="big" id="tm">15.0</span></div><div style="text-align:right"><small>深さ</small><span class="big"><span id="dp">0</span><span style="font-size:16px">m</span></span></div></div>
   <button class="back" id="mute" style="right:12px;left:auto;border:0">🔊</button><a class="back" href="index.html">← アプリへ戻る</a>
   <div class="panel" id="start">
     <h1>OGURA <span>the DIVER</span></h1>
     <div class="msg">15秒でどこまで潜れる？<br>指をスライドして左右に動かそう<br>✨光るものは取る ⚠赤い枠はよける<br>続けて取るとベースが鳴ってコンボ！<br>障害物すれすれは「ギリギリ」ボーナス</div>
     <input id="nm" maxlength="12" placeholder="なまえ" autocomplete="off">
+    <div class="legend" id="lg"></div>
     <button class="btn" id="go">スタート</button>
     <div class="rank" id="rk1"></div>
   </div>
@@ -247,6 +254,25 @@ $('go').addEventListener('click',startGame);
 $('again').addEventListener('click',()=>{audioOn();$('end').classList.add('hide');reset();state='play'});
 try{$('nm').value=localStorage.getItem('bh_game_name')||''}catch(e){}
 $('nm').addEventListener('keydown',e=>{if(e.key==='Enter')startGame()});
+
+(function(){
+  const rows=[
+    ['h','✨ 光るもの = 取る'],
+    ['item_tank','good','酸素ボンベ','+12m 一気に潜る'],
+    ['item_string','good','ベースの弦','+4m'],
+    ['item_star','good','ステージダイブ','4秒間、2倍の速さ'],
+    ['item_clock','good','時計','残り時間 +2秒'],
+    ['h','⚠ 赤い枠 = よける'],
+    ['item_bad','bad','ハウリング(赤い×)','取ると -6m・減速'],
+    ['ob_amp','bad','アンプ・スピーカー・ケーブル','ぶつかると -4m・減速'],
+    ['h','🎸 ボーナス'],
+    ['item_string','good','連続で取る = コンボ','ベースの音階が上がる! 3つ目から追加ボーナス'],
+    ['ob_speaker','good','ギリギリでよける','すれすれを通ると +3m']
+  ];
+  const el=document.getElementById('lg');
+  const src=k=>'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(SPRITES[k]);
+  el.innerHTML='<h2>アイテムの説明</h2>'+rows.map(r=>r[0]==='h'?'<div style="margin-top:6px;font-weight:900">'+r[1]+'</div>':'<div class="row"><img src="'+src(r[0])+'" alt=""><div><b class="'+r[1]+'">'+r[2]+'</b><br><span style="opacity:.85">'+r[3]+'</span></div></div>').join('');
+})();
 reset();state='idle';ranking($('rk1'),myName());
 requestAnimationFrame(loop);
 </script>
