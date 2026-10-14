@@ -149,6 +149,29 @@ function bgmStart(){
   },25);
 }
 function bgmStop(){if(!bgm)return;const o=bgm;bgm=null;clearInterval(o.timer);try{o.out.gain.setValueAtTime(o.out.gain.value,AC.currentTime);o.out.gain.linearRampToValueAtTime(0,AC.currentTime+.25);setTimeout(()=>{try{o.out.disconnect();o.lfo.stop()}catch(e){}},1500)}catch(e){}}
+
+// ---- オープニング曲 (G#3 G#3 G3 ー ー ー / F3 F3 G3 ー ー ー / G#3 G#3 G3 ー ー ー / F3 ー ー G3 G3 G3)
+const OP_RIFF=[[207.65,1],[207.65,1],[196,4],[174.61,1],[174.61,1],[196,4],[207.65,1],[207.65,1],[196,4],[174.61,3],[196,1],[196,1],[196,1]];
+let op=null;
+function openStart(){
+  if(!AC||op||bgm||state!=='idle')return;
+  const out=AC.createGain();out.gain.value=muted?0:1;out.connect(AC.destination);
+  op={out,i:0,next:AC.currentTime+.1,step:.15,pos:0,timer:0};
+  op.timer=setInterval(()=>{
+    if(!op)return;
+    while(op.next<AC.currentTime+.2){
+      const [f,n]=OP_RIFF[op.i],d=op.step*n,t=op.next;
+      bgmNote(t,f,d*.95,'square',.085,out);       // リード
+      bgmNote(t,f/2,d*.95,'triangle',.16,out);    // ベース
+      bgmNote(t,f*2,Math.min(d,.5),'square',.025,out);
+      if(op.pos%6===0)bgmKick(t,out);
+      op.pos+=n;op.next+=d;op.i=(op.i+1)%OP_RIFF.length;
+    }
+  },25);
+}
+function openStop(){if(!op)return;const o=op;op=null;clearInterval(o.timer);try{o.out.gain.setValueAtTime(o.out.gain.value,AC.currentTime);o.out.gain.linearRampToValueAtTime(0,AC.currentTime+.2);setTimeout(()=>{try{o.out.disconnect()}catch(e){}},400)}catch(e){}}
+// 画面を最初にタップした時に鳴り始める(ブラウザは操作前に音を出せないため)
+document.addEventListener('pointerdown',()=>{if(state==='idle'){audioOn();openStart()}});
 document.addEventListener('visibilitychange',()=>{if(!AC)return;try{document.hidden?AC.suspend():AC.resume()}catch(e){}});
 const GOLD_RATE=.08;
 const TMAX=30, HARD=40, GOLD_MAX=3, DEPTH_MAX=1000000, RUSH_CHANCE=.12, RUSH_RATE=.7;
@@ -286,7 +309,7 @@ async function ranking(el,mine){
 }
 function myName(){return ($('nm').value||'').trim().slice(0,12)}
 function bestLocal(){return Number(localStorage.getItem('bh_game_best')||0)}
-function beginRun(){reset();S.goldRate=Math.random()<RUSH_CHANCE?RUSH_RATE:GOLD_RATE;if(S.goldRate===RUSH_RATE){popText('✨ ゴールドベース・ラッシュ！ よく出るぞ ✨',W/2,H*.55,'#fde047');S.pop[0].t=-.8}state='play';bgmStop();bgmStart()}
+function beginRun(){reset();S.goldRate=Math.random()<RUSH_CHANCE?RUSH_RATE:GOLD_RATE;if(S.goldRate===RUSH_RATE){popText('✨ ゴールドベース・ラッシュ！ よく出るぞ ✨',W/2,H*.55,'#fde047');S.pop[0].t=-.8}state='play';openStop();bgmStop();bgmStart()}
 function startGame(){audioOn();
   const n=myName();if(!n){$('nm').focus();$('nm').style.borderColor='#f87171';return}
   try{localStorage.setItem('bh_game_name',n)}catch(e){}
@@ -307,7 +330,7 @@ function setTx(e){if(state!=='play')return;const r=cv.getBoundingClientRect();S.
 cv.addEventListener('pointerdown',e=>{e.preventDefault();try{cv.setPointerCapture(e.pointerId)}catch(_){}setTx(e)});
 cv.addEventListener('pointermove',e=>{e.preventDefault();setTx(e)});
 addEventListener('keydown',e=>{if(state!=='play')return;const st=W*.12;if(e.code==='ArrowLeft')S.tx=Math.max(24,S.tx-st);if(e.code==='ArrowRight')S.tx=Math.min(W-24,S.tx+st)});
-$('mute').addEventListener('click',()=>{muted=!muted;if(bgm)bgm.out.gain.value=muted?0:1;$('mute').textContent=muted?'🔇':'🔊'});
+$('mute').addEventListener('click',()=>{muted=!muted;if(bgm)bgm.out.gain.value=muted?0:1;if(op)op.out.gain.value=muted?0:1;$('mute').textContent=muted?'🔇':'🔊'});
 $('go').addEventListener('click',startGame);
 $('again').addEventListener('click',()=>{audioOn();$('end').classList.add('hide');beginRun()});
 try{$('nm').value=localStorage.getItem('bh_game_name')||''}catch(e){}
