@@ -211,27 +211,35 @@ function spawn(){
 }
 
 // ---- ゴールドラッシュ: 金のリボンを追いかけて駆け抜ける(何本続くかは毎回ひみつ)
-const ST_GAP=4;                       // 金の間隔(m)
 const GOLD_SCALE=[1,9/8,5/4,3/2,5/3];  // ペンタトニック(取るたびに音が駆け上がる)
 function streamNote(k){const f=330*GOLD_SCALE[k%5]*Math.pow(2,Math.floor(k/5)%4);tone(f,.1,'triangle',.13);tone(f*2,.07,'square',.04)}
+// ラッシュタイム: 金を取るたび伸びるが、放っておくと0になって終了。金は「終わるか終わらないか」の位置に数本まとめて置かれる
+const RT0=3, RTMAX=3.4, RT_GAIN=.4, CL_GAP=6, RUSH_AGE_MAX=26, VIEW_M=115;
+function streamV(){const st=S.stream;return 60+Math.min(st.got,150)*.5}
 function startStream(){
-  S.objs=[];S.stream={total:140+Math.floor(Math.random()*261),spawned:0,got:0,next:S.depth+34,phase:Math.random()*6.28,age:0};
+  S.objs=[];S.stream={rt:RT0,got:0,age:0,x:W/2,nextD:null,nextN:4,curFirstD:null,stop:false,startDepth:S.depth,phase:0};
+  S.stream.nextD=S.depth+streamV()*RT0*.6;
   S.shake=.5;S.inv=Math.max(S.inv,3);goldRiff();buzz([40,30,40,30,120]);
   popText('GOLD RUSH',W/2,H*.5,'#fde047');S.pop[S.pop.length-1].t=-.2;
 }
+function schedNext(fromD,spanLeft,nLeft){const st=S.stream;if(st.age>RUSH_AGE_MAX){st.stop=true;return}
+  const f=.75+Math.random()*.35,D=spanLeft+streamV()*(st.rt+nLeft*RT_GAIN)*f;
+  st.nextD=S.depth+Math.min(D,VIEW_M);st.nextN=[3,4,4,5,5,6][Math.floor(Math.random()*6)];st.curFirstD=null}
 function streamSpawn(){
   const st=S.stream;
-  while(st.next<S.depth+60&&st.spawned<st.total){
-    const last=st.spawned===st.total-1,x=W/2+Math.sin(st.spawned*.2+st.phase)*W*.3*(1+Math.sin(st.spawned*.05)*.25);
-    S.objs.push({type:'item',it:{k:'item_gold'},k:'item_gold',x:Math.max(W*.1,Math.min(W*.9,x)),d:st.next,w:last?86:48,h:last?86:48,stream:true,last});
-    st.next+=ST_GAP;st.spawned++;
+  if(st.nextD!=null&&st.nextD<S.depth+VIEW_M+4){
+    const n=st.nextN,x0=W*(.18+Math.random()*.64),dir=Math.random()<.5?-1:1;
+    for(let k=0;k<n;k++){const x=Math.max(W*.1,Math.min(W*.9,x0+dir*k*W*.035));
+      S.objs.push({type:'item',it:{k:'item_gold'},k:'item_gold',x,d:st.nextD+k*CL_GAP,w:48,h:48,stream:true,first:k===0,left:n-1-k})}
+    st.curFirstD=st.nextD;st.nextD=null;
   }
+  // 先頭を取り逃した場合も次を置く
+  if(st.nextD==null&&st.curFirstD!=null&&S.depth>st.curFirstD+3&&!st.stop){schedNext(0,0,0)}
 }
 function finishStream(){
-  const st=S.stream;S.stream=null;S.streamDone=true;S.inv=Math.max(S.inv,1.2);
-  S.rush=Math.max(S.rush,.8);S.shake=.8;
-  const gt=addTime(3);
-  popText('完走！ GOLD x'+st.got+'  +'+gt+'秒',W/2,H*.45,'#fde047');S.pop[S.pop.length-1].t=-.2;
+  const st=S.stream;S.stream=null;S.streamDone=true;S.objs=S.objs.filter(o=>!o.stream);S.inv=Math.max(S.inv,1.2);
+  S.rush=Math.max(S.rush,.8);S.shake=.8;const gt=addTime(2),dm=Math.round(S.depth-st.startDepth);
+  popText('RUSH END  GOLD x'+st.got+'  +'+dm+'m',W/2,H*.45,'#fde047');S.pop[S.pop.length-1].t=-.2;
   S.nextSpawn=S.depth+40;flashNow=true;buzz([60,40,60,40,200]);
   [0,1,2,3,4].forEach(i=>setTimeout(()=>streamNote(15+i),i*90));
 }
@@ -239,13 +247,13 @@ let flashNow=false;
 function addTime(sec){S.bonusN=(S.bonusN||0);const g=Math.round(sec*Math.max(.2,1-.2*S.bonusN)*10)/10;S.bonusN++;S.t=Math.min(TMAX,S.t+g);return g}
 function popText(txt,x,y,col){S.pop.push({txt,x,y,t:0,col:col||'#fde68a'})}
 function update(dt){
-  PXM=S.stream?14:26;
+  PXM=S.stream?4.2:26;
   S.time+=dt;
   if(S.rushRun&&!S.stream&&!S.streamDone&&S.time>=S.streamAt)startStream();
   if(!S.stream){S.t-=dt;S.t=Math.min(S.t,HARD-S.time)}   // ラッシュ中は時間が止まる
   if(S.t<=0){S.t=0;endGame();return}
   let vt=5+S.time*.18;if(S.dbl>0)vt*=2;if(S.slow>0)vt*=.3;
-  if(S.stream){S.stream.age+=dt;vt=60+Math.min(S.stream.got,200)*.6;S.rush=1.7;S.rushT=1.7;S.rushAge=S.stream.age;S.inv=Math.max(S.inv,.5);S.shake=Math.max(S.shake,.12)}
+  if(S.stream){S.stream.age+=dt;S.stream.rt-=dt;vt=streamV();S.rush=1.7;S.rushT=1.7;S.rushAge=S.stream.age;S.inv=Math.max(S.inv,.5);S.shake=Math.max(S.shake,.12)}
   S.v+=(vt-S.v)*Math.min(1,dt*4);
   S.depth=Math.max(0,S.depth+S.v*dt);
   if(S.rush>0){S.rushAge=(S.rushAge||0)+dt;if(S.rushLeft>0){const d=Math.min(S.rushLeft,Math.min(400,90+S.rushLeft*.25)*dt);S.depth+=d;S.rushLeft-=d;S.rush=Math.max(S.rush,.4)}S.rush-=dt}
@@ -253,7 +261,7 @@ function update(dt){
   if(S.slow>0)S.slow-=dt;if(S.dbl>0)S.dbl-=dt;if(S.inv>0)S.inv-=dt;if(S.shake>0)S.shake-=dt;
   if(S.depth>=DEPTH_MAX){S.depth=DEPTH_MAX;endGame();return}
   const dd=S.depth-(S.lastDepth==null?S.depth:S.lastDepth);S.lastDepth=S.depth;
-  if(S.stream){streamSpawn();if(S.stream.spawned>=S.stream.total&&!S.objs.some(o=>o.k==='item_gold'))finishStream()}
+  if(S.stream){streamSpawn();if(S.stream.rt<=0)finishStream()}
   else while(S.nextSpawn<S.depth+36&&S.objs.length<30)spawn();
   const dx=S.dx, dy=H*.34;
   for(let i=S.objs.length-1;i>=0;i--){
@@ -261,7 +269,6 @@ function update(dt){
     if(y<-120){S.objs.splice(i,1);continue}
     if(o.hit)continue;
     const hw=(o.w+60)/2*.7*(o.stream?2.1:(o.k==='item_gold'&&S.rush>0?1.6:1)), hh=(o.h+60)/2*.7+(o.type==='item'?Math.max(0,dd)*PXM:0);
-    if(o.stream&&Math.abs(y-dy)<300)o.x+=(dx-o.x)*Math.min(1,dt*(2+(300-Math.abs(y-dy))/60));
     if(Math.abs(o.x-dx)<hw&&Math.abs(y-dy)<hh){
       if(o.type==='item'){o.hit=true;S.objs.splice(i,1);applyItem(o,dx,dy)}
       else if(S.inv<=0){S.inv=1;S.slow=.9;S.shake=.3;S.depth=Math.max(0,S.depth-4);S.combo=0;thud();buzz(80);popText('ガツン！ -4m',dx,dy-40,'#fca5a5')}
@@ -278,11 +285,12 @@ function applyItem(o,x,y){
   sparkle();noteUp(S.combo);S.combo++;S.maxCombo=Math.max(S.maxCombo,S.combo);buzz(15);
   const cb=S.combo>=3&&!S.stream?Math.min(S.combo-2,5):0;S.depth+=cb;
   const cbTxt=S.combo>=2?'  COMBO x'+S.combo+(cb?' +'+cb+'m':''):'';
-  if(k==='item_gold'&&o.stream){const st=S.stream;if(st){st.got++;S.depth+=o.last?150:0;S.items++;streamNote(st.got);buzz(10);S.bump=.12;
-    for(let n=0;n<(o.last?50:6);n++){const a=Math.random()*6.28;S.spark.push({x,y,vx:Math.cos(a)*(60+Math.random()*200),vy:Math.sin(a)*(60+Math.random()*200),t:0})}
-    if(st.got%25===0&&!o.last)popText('まだまだ続く！！',W/2,H*.38,'#fff');
-    if(st.got%10===0){S.shake=.4;flashNow=true;popText('x'+st.got,x,y-50,'#fde047');chord()}
-    if(o.last){S.shake=1;flashNow=true;buzz([80,50,200])}}return}
+  if(k==='item_gold'&&o.stream){const st=S.stream;if(st){const tight=st.rt<.7;st.got++;st.rt=Math.min(RTMAX,st.rt+RT_GAIN);S.items++;streamNote(st.got);buzz(10);S.bump=.12;
+    for(let n=0;n<6;n++){const a=Math.random()*6.28;S.spark.push({x,y,vx:Math.cos(a)*(60+Math.random()*200),vy:Math.sin(a)*(60+Math.random()*200),t:0})}
+    if(o.first){const d0=o.d,span=(o.left)*CL_GAP;schedNext(d0,span,o.left)}
+    if(tight&&o.first){popText('ギリギリ！！',x,y-60,'#fff');S.shake=.3;flashNow=true;chord()}
+    else if(st.got%25===0)popText('まだまだ続く！！',W/2,H*.38,'#fff');
+    if(st.got%10===0){S.shake=.4;flashNow=true;popText('x'+st.got,x,y-50,'#fde047');chord()}}return}
   if(k==='item_gold'){const was=S.rush>0;S.rushLeft=(S.rushLeft||0)+100;S.rush=1.7;S.rushT=1.7;if(!was)S.rushAge=0;const gt=addTime(3);S.inv=Math.max(S.inv,1.9);S.shake=Math.max(S.shake,.6);S.slow=0;S.dbl=0;for(let n=0;n<60;n++){const a=Math.random()*6.28;S.spark.push({x,y,vx:Math.cos(a)*(80+Math.random()*260),vy:Math.sin(a)*(80+Math.random()*260),t:0})}buzz([60,40,60,40,200]);if(!was)goldRiff();else{tone(1200+Math.min(S.goldN||0,40)*20,.12,'triangle',.12)}popText('★ GOLD DIVE!! +100m ＆ +'+gt+'秒 ★',W/2,y-70,'#fde047');return}
   if(k==='item_tank'){S.depth+=12;popText('酸素ボンベ！ +12m'+cbTxt,x,y-40)}
   else if(k==='item_string'){S.depth+=4;popText('弦ゲット +4m'+cbTxt,x,y-40)}
@@ -349,6 +357,9 @@ function draw(){
     ctx.save();ctx.textAlign='center';ctx.font='900 '+(34+Math.sin(S.time*30)*3)+'px sans-serif';ctx.lineWidth=5;ctx.strokeStyle='#7c2d12';ctx.fillStyle='#fde047';ctx.globalAlpha=Math.min(1,p*2);
     if(!S.stream){ctx.strokeText('GOLD DIVE!!',W/2,H*.62);ctx.fillText('GOLD DIVE!!',W/2,H*.62)}ctx.restore()}
   if(S.stream){const g=ctx.createLinearGradient(0,0,W,0),a=.25+.1*Math.sin(S.time*14);g.addColorStop(0,'rgba(253,224,71,'+a+')');g.addColorStop(.18,'rgba(253,224,71,0)');g.addColorStop(.82,'rgba(253,224,71,0)');g.addColorStop(1,'rgba(253,224,71,'+a+')');ctx.fillStyle=g;ctx.fillRect(0,0,W,H)}
+  if(S.stream){const st=S.stream,fr=Math.max(0,st.rt/RTMAX),low=st.rt<.8,bw=Math.min(240,W*.6),bx=(W-bw)/2,by=78;
+    ctx.save();ctx.fillStyle='rgba(0,0,0,.45)';ctx.fillRect(bx-3,by-3,bw+6,16);ctx.fillStyle=low?(Math.sin(S.time*30)>0?'#ef4444':'#fca5a5'):'#fde047';ctx.fillRect(bx,by,bw*fr,10);
+    ctx.textAlign='center';ctx.font='900 11px sans-serif';ctx.fillStyle='#fff';ctx.fillText('RUSH TIME '+st.rt.toFixed(1),W/2,by-8);ctx.restore()}
   if(S.stream){const st=S.stream,sc=1+(S.bump||0)*2.5;S.bump=Math.max(0,(S.bump||0)-.016);
     ctx.save();ctx.textAlign='center';ctx.translate(W/2,H*.62);ctx.scale(sc,sc);ctx.font='900 46px sans-serif';ctx.lineWidth=7;ctx.strokeStyle='#7c2d12';ctx.fillStyle='#fde047';
     ctx.strokeText('GOLD x'+st.got,0,0);ctx.fillText('GOLD x'+st.got,0,0);ctx.restore();
