@@ -192,7 +192,7 @@ function openStop(){if(!op)return;const o=op;op=null;clearInterval(o.timer);try{
 document.addEventListener('pointerdown',()=>{if(state==='idle'){audioOn();openStart()}});
 document.addEventListener('visibilitychange',()=>{if(!AC)return;try{document.hidden?AC.suspend():AC.resume()}catch(e){}});
 const GOLD_RATE=.14;
-const TMAX=30, HARD=40, GOLD_MAX=5, RUSH_MAX=14, DEPTH_MAX=1000000, RUSH_CHANCE=.25, RUSH_RATE=.85;
+const TMAX=30, HARD=40, GOLD_MAX=5, RUSH_MAX=70, DEPTH_MAX=1000000, RUSH_CHANCE=.08, RUSH_RATE=.9;
 const LIMIT=15, PXM=26;
 const ITEM_KINDS=[{k:'item_tank',w:3,m:'酸素ボンベ！ +12m'},{k:'item_string',w:4,m:'弦ゲット +4m'},{k:'item_star',w:2,m:'ステージダイブ！ 4秒ダブル'},{k:'item_clock',w:2,m:'時計 +2秒'},{k:'item_bad',w:3,m:'ハウリング… 浮かされた'}];
 const OBS=[{k:'ob_cable',w:78,h:39},{k:'ob_speaker',w:54,h:72},{k:'ob_amp',w:64,h:55}];
@@ -202,10 +202,11 @@ function reset(){S={t:LIMIT,depth:0,v:0,time:0,objs:[],nextSpawn:6,bubbles:[],db
 function pickItem(){const tot=ITEM_KINDS.reduce((a,b)=>a+b.w,0);let r=Math.random()*tot;for(const it of ITEM_KINDS){if((r-=it.w)<=0)return it}return ITEM_KINDS[0]}
 function spawn(){
   const x=W*(.12+Math.random()*.76);
+  if(S.rushLeft>1&&!(S.goldRate===RUSH_RATE&&(S.goldN||0)<RUSH_MAX)){S.nextSpawn=S.depth+34+6;return} // 大ジャンプ中は他を出さない
   if((S.goldN||0)<(S.goldRate===RUSH_RATE?RUSH_MAX:GOLD_MAX)&&Math.random()<S.goldRate){S.goldN=(S.goldN||0)+1;S.objs.push({type:'item',it:{k:'item_gold'},k:'item_gold',x,d:S.depth+34,w:52,h:52})}
-  else if(Math.random()<.42){const it=pickItem();S.objs.push({type:'item',it,k:it.k,x,d:S.depth+34,w:it.k==='item_string'?38:34,h:it.k==='item_string'?47:34})}
+  else if(Math.random()<.42&&!(S.goldRate===RUSH_RATE&&(S.goldN||0)<RUSH_MAX)){const it=pickItem();S.objs.push({type:'item',it,k:it.k,x,d:S.depth+34,w:it.k==='item_string'?38:34,h:it.k==='item_string'?47:34})}
   else{const o=OBS[Math.floor(Math.random()*OBS.length)];S.objs.push({type:'ob',k:o.k,x,d:S.depth+34,w:o.w,h:o.h})}
-  S.nextSpawn=S.depth+34+ (4+Math.random()*7);
+  S.nextSpawn=S.depth+34+((S.goldRate===RUSH_RATE&&(S.goldN||0)<RUSH_MAX)?(1.2+Math.random()*2):(4+Math.random()*7));
 }
 function addTime(sec){S.bonusN=(S.bonusN||0);const g=Math.round(sec*Math.max(.2,1-.2*S.bonusN)*10)/10;S.bonusN++;S.t=Math.min(TMAX,S.t+g);return g}
 function popText(txt,x,y,col){S.pop.push({txt,x,y,t:0,col:col||'#fde68a'})}
@@ -214,17 +215,18 @@ function update(dt){
   let vt=5+S.time*.18;if(S.dbl>0)vt*=2;if(S.slow>0)vt*=.3;
   S.v+=(vt-S.v)*Math.min(1,dt*4);
   S.depth=Math.max(0,S.depth+S.v*dt);
-  if(S.rush>0){const d=Math.min(S.rush,dt);S.depth+=100*d/S.rushT;S.rush-=dt}
+  if(S.rush>0){S.rushAge=(S.rushAge||0)+dt;if(S.rushLeft>0){const d=Math.min(S.rushLeft,Math.min(400,90+S.rushLeft*.25)*dt);S.depth+=d;S.rushLeft-=d;S.rush=Math.max(S.rush,.4)}S.rush-=dt}
   S.dx+=(S.tx-S.dx)*Math.min(1,dt*10);
   if(S.slow>0)S.slow-=dt;if(S.dbl>0)S.dbl-=dt;if(S.inv>0)S.inv-=dt;if(S.shake>0)S.shake-=dt;
   if(S.depth>=DEPTH_MAX){S.depth=DEPTH_MAX;endGame();return}
+  const dd=S.depth-(S.lastDepth==null?S.depth:S.lastDepth);S.lastDepth=S.depth;
   while(S.nextSpawn<S.depth+36&&S.objs.length<30)spawn();
   const dx=S.dx, dy=H*.34;
   for(let i=S.objs.length-1;i>=0;i--){
     const o=S.objs[i];const y=dy+(o.d-S.depth)*PXM;o.y=y;
     if(y<-120){S.objs.splice(i,1);continue}
     if(o.hit)continue;
-    const hw=(o.w+60)/2*.7, hh=(o.h+60)/2*.7;
+    const hw=(o.w+60)/2*.7*(o.k==='item_gold'&&S.rush>0?1.6:1), hh=(o.h+60)/2*.7+(o.type==='item'?Math.max(0,dd)*PXM:0);
     if(Math.abs(o.x-dx)<hw&&Math.abs(y-dy)<hh){
       if(o.type==='item'){o.hit=true;S.objs.splice(i,1);applyItem(o,dx,dy)}
       else if(S.inv<=0){S.inv=1;S.slow=.9;S.shake=.3;S.depth=Math.max(0,S.depth-4);S.combo=0;thud();buzz(80);popText('ガツン！ -4m',dx,dy-40,'#fca5a5')}
@@ -241,7 +243,7 @@ function applyItem(o,x,y){
   sparkle();noteUp(S.combo);S.combo++;S.maxCombo=Math.max(S.maxCombo,S.combo);buzz(15);
   const cb=S.combo>=3?Math.min(S.combo-2,5):0;S.depth+=cb;
   const cbTxt=S.combo>=2?'  COMBO x'+S.combo+(cb?' +'+cb+'m':''):'';
-  if(k==='item_gold'){S.rush=1.7;S.rushT=1.7;const gt=addTime(3);S.inv=Math.max(S.inv,1.9);S.shake=1.7;S.slow=0;S.dbl=0;for(let n=0;n<60;n++){const a=Math.random()*6.28;S.spark.push({x,y,vx:Math.cos(a)*(80+Math.random()*260),vy:Math.sin(a)*(80+Math.random()*260),t:0})}buzz([60,40,60,40,200]);goldRiff();popText('★ GOLD DIVE!! +100m ＆ +'+gt+'秒 ★',W/2,y-70,'#fde047');return}
+  if(k==='item_gold'){const was=S.rush>0;S.rushLeft=(S.rushLeft||0)+100;S.rush=1.7;S.rushT=1.7;if(!was)S.rushAge=0;const gt=addTime(3);S.inv=Math.max(S.inv,1.9);S.shake=Math.max(S.shake,.6);S.slow=0;S.dbl=0;for(let n=0;n<60;n++){const a=Math.random()*6.28;S.spark.push({x,y,vx:Math.cos(a)*(80+Math.random()*260),vy:Math.sin(a)*(80+Math.random()*260),t:0})}buzz([60,40,60,40,200]);if(!was)goldRiff();else{tone(1200+Math.min(S.goldN||0,40)*20,.12,'triangle',.12)}popText('★ GOLD DIVE!! +100m ＆ +'+gt+'秒 ★',W/2,y-70,'#fde047');return}
   if(k==='item_tank'){S.depth+=12;popText('酸素ボンベ！ +12m'+cbTxt,x,y-40)}
   else if(k==='item_string'){S.depth+=4;popText('弦ゲット +4m'+cbTxt,x,y-40)}
   else if(k==='item_star'){S.dbl=4;popText('ステージダイブ！ 4秒ダブル'+cbTxt,x,y-40,'#f9a8d4')}
@@ -303,7 +305,7 @@ function draw(){
     ctx.strokeStyle='rgba(255,243,176,'+(.25+.3*p)+')';ctx.lineWidth=2;
     for(let n=0;n<26;n++){const x=(n*97.3+S.time*13)%W,l=90+((n*53)%140),y=((S.time*1400+n*211)%(H+l))-l;ctx.beginPath();ctx.moveTo(x,H-y);ctx.lineTo(x,H-y-l);ctx.stroke()}
     ctx.restore();
-    if(S.rushT-S.rush<.1){ctx.fillStyle='rgba(255,250,200,'+(1-(S.rushT-S.rush)/.1)*.55+')';ctx.fillRect(0,0,W,H)}
+    if((S.rushAge||0)<.1){ctx.fillStyle='rgba(255,250,200,'+(1-(S.rushAge||0)/.1)*.55+')';ctx.fillRect(0,0,W,H)}
     ctx.save();ctx.textAlign='center';ctx.font='900 '+(34+Math.sin(S.time*30)*3)+'px sans-serif';ctx.lineWidth=5;ctx.strokeStyle='#7c2d12';ctx.fillStyle='#fde047';ctx.globalAlpha=Math.min(1,p*2);
     ctx.strokeText('GOLD DIVE!!',W/2,H*.62);ctx.fillText('GOLD DIVE!!',W/2,H*.62);ctx.restore()}
   ctx.restore();
