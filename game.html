@@ -217,7 +217,7 @@ function streamNote(k){const f=330*GOLD_SCALE[k%5]*Math.pow(2,Math.floor(k/5)%4)
 const RT0=3, RTMAX=3.4, RT_GAIN=.4, CL_GAP=6, RUSH_AGE_MAX=26, VIEW_M=115;
 function streamV(){const st=S.stream;return 60+Math.min(st.got,150)*.5}
 // ラッシュ回: 金を取ると「バーン」と進み、その到達点のギリギリ手前/奥に次の金が1本だけ置かれる。取れれば連鎖、外すと終わり
-function placeChain(ahead){const x=W*(.15+Math.random()*.7);S.objs.push({type:'item',it:{k:'item_gold'},k:'item_gold',x,d:S.depth+ahead,w:48,h:48,chain:true})}
+function placeChain(ahead){const x=W*(.15+Math.random()*.7);S.objs.push({type:'item',it:{k:'item_gold'},k:'item_gold',x,d:S.depth+ahead,y:H*.34+ahead*PXM,w:48,h:48,chain:true})}
 function chainNext(){const end=(S.rushLeft||0)+S.v*.9;placeChain(Math.max(14,end+(Math.random()*18-6)))}
 function startStream(){
   S.objs=[];S.stream={rt:RT0,got:0,age:0,x:W/2,nextD:null,nextN:4,curFirstD:null,stop:false,startDepth:S.depth,phase:0};
