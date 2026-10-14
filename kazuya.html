@@ -106,8 +106,8 @@ function ui(){
     const n=S.seq.length,gap=Math.min(44,(W-60)/n),x0=W/2-(n-1)*gap/2;
     S.seq.forEach((d,i)=>arrow(x0+i*gap,622,d,i<S.idx?11:15,i<S.idx?'#4ade80':(i===S.idx&&S.phase==='dir'?'#fde047':'#fff')));
     ctx.fillStyle='rgba(255,255,255,.15)';rr(24,660,W-48,92,10);ctx.fill();
-    if(S.phase==='dir')txt('ここをスワイプ(画面のどこでもOK)',W/2,706,13,'#9ab','center');
-    else{const p=S.btnT/1.3,r=34+Math.sin(S.time*20)*3;ctx.fillStyle='#e11d48';ctx.beginPath();ctx.arc(W-70,706,r,0,6.3);ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=4;ctx.stroke();txt('A',W-70,706,34,'#fff','center');
+    if(S.phase==='dir')txt('指でなぞる(画面のどこでもOK・ゆるめ判定)',W/2,706,13,'#9ab','center');
+    else{const p=S.btnT/2,r=34+Math.sin(S.time*20)*3;ctx.fillStyle='#e11d48';ctx.beginPath();ctx.arc(W-70,706,r,0,6.3);ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=4;ctx.stroke();txt('A',W-70,706,34,'#fff','center');
       ctx.fillStyle='#fde047';ctx.fillRect(40,742,(W-80)*Math.max(0,1-p),5)}
   }
 }
@@ -132,9 +132,9 @@ function success(){const i=S.tech,e=S.enemy,pts=TECH_PTS[i];S.swing=.001;S.flash
 let sx=0,sy=0,down=false;
 function pos(ev){const r=cv.getBoundingClientRect();return[(ev.clientX-r.left)/r.width*W,(ev.clientY-r.top)/r.height*H]}
 cv.addEventListener('pointerdown',ev=>{ev.preventDefault();A();if(ac&&ac.state==='suspended')ac.resume();const[x,y]=pos(ev);sx=x;sy=y;down=true;tap(x,y)});
-cv.addEventListener('pointermove',ev=>{if(!down||!S||state!=='play'||S.phase!=='dir')return;const[x,y]=pos(ev),dx=x-sx,dy=y-sy;if(Math.hypot(dx,dy)<34)return;
+cv.addEventListener('pointermove',ev=>{if(!down||!S||state!=='play'||S.phase!=='dir')return;const[x,y]=pos(ev),dx=x-sx,dy=y-sy;if(Math.hypot(dx,dy)<16)return;
   const d=Math.abs(dx)>Math.abs(dy)?(dx>0?'R':'L'):(dy>0?'D':'U');sx=x;sy=y;
-  if(d===S.seq[S.idx]){okd(S.idx);S.idx++;if(S.idx>=S.seq.length){S.phase='btn';S.btnT=1.3}}else fail('ちがう！')});
+  if(d===S.seq[S.idx]){okd(S.idx);S.idx++;if(S.idx>=S.seq.length){S.phase='btn';S.btnT=2}}else{tone(200,.08,'square',.05);S.bad=.15}});
 addEventListener('pointerup',()=>{down=false});
 function tap(x,y){
   if(state==='title'){if(y>500&&y<600){reset();state='play'}return}
@@ -145,7 +145,7 @@ function tap(x,y){
     else{for(let i=0;i<7;i++){const col=i%2,row=Math.floor(i/2),bx=14+col*182,by=542+row*52;if(x>bx&&x<bx+182&&y>by&&y<by+52){if(i===6&&S.u7<1){ng();return}startTech(i);return}}
       if(y<540){S.menu='cmd'}}
   }else if(S.phase==='btn'){
-    if(x>W-130&&y>650)success()}
+    if(x>W-150&&y>630)success()}
 }
 let last=0;
 function loop(ts){const dt=Math.min(.05,(ts-last)/1000||0);last=ts;ctx.clearRect(0,0,W,H);
