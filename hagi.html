@@ -3,74 +3,88 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>萩の夏休み</title>
 <style>
-:root{--g:#16a34a;--sky1:#7dd3fc;--sky2:#fef9c3}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
-html,body{margin:0;height:100%;background:#fde68a;font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;color:#1f2937;overflow:hidden;touch-action:manipulation}
-#app{position:fixed;inset:0;max-width:480px;margin:0 auto;background:linear-gradient(#7dd3fc 0%,#bae6fd 28%,#fef9c3 46%,#bbf7d0 46.1%,#86efac 100%);display:flex;flex-direction:column;padding:env(safe-area-inset-top) 12px calc(12px + env(safe-area-inset-bottom))}
-.top{display:flex;justify-content:space-between;align-items:flex-end;padding:10px 4px 0}
-.top small{display:block;font-size:11px;font-weight:700;opacity:.7}
-.big{font-size:36px;font-weight:900;line-height:1;font-variant-numeric:tabular-nums}
-.wife{margin:8px 0;background:rgba(255,255,255,.75);border-radius:18px;padding:10px 12px;display:flex;align-items:center;gap:10px}
-.wife .em{font-size:38px;line-height:1}
-.wife .bar{flex:1}
-.wife .lb{font-size:12px;font-weight:800;margin-bottom:4px;display:flex;justify-content:space-between}
-.gauge{height:12px;background:#e5e7eb;border-radius:99px;overflow:hidden}
+html,body{margin:0;height:100%;background:#7dd3fc;font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;color:#1f2937;overflow:hidden;touch-action:manipulation}
+#app{position:fixed;inset:0;max-width:480px;margin:0 auto;display:flex;flex-direction:column;overflow:hidden;background:#7dd3fc}
+#app.shake{animation:shk .16s}
+@keyframes shk{0%,100%{transform:translate(0)}25%{transform:translate(-3px,2px)}75%{transform:translate(3px,-2px)}}
+.hud{position:absolute;top:0;left:0;right:0;z-index:4;display:flex;justify-content:space-between;align-items:flex-start;padding:calc(8px + env(safe-area-inset-top)) 14px 0;pointer-events:none}
+.hud small{display:block;font-size:11px;font-weight:800;opacity:.8}
+.big{font-size:40px;font-weight:900;line-height:1;font-variant-numeric:tabular-nums;color:#1f2937;text-shadow:0 2px 0 #fff,0 0 8px #fff}
+.big.low{color:#dc2626;animation:beat .5s infinite}
+@keyframes beat{50%{transform:scale(1.15)}}
+.bump{animation:bump .25s}
+@keyframes bump{40%{transform:scale(1.35)}}
+.mid{position:absolute;left:100px;right:100px;top:calc(10px + env(safe-area-inset-top));z-index:4;text-align:center;pointer-events:none}
+.mid .lb{font-size:10px;font-weight:800;margin-bottom:3px;text-shadow:0 1px 0 #fff}
+.gauge{height:11px;background:rgba(255,255,255,.7);border-radius:99px;overflow:hidden;box-shadow:0 0 0 2px #fff}
 .gauge i{display:block;height:100%;width:100%;background:linear-gradient(90deg,#f472b6,#fb923c);transition:width .25s}
-.grid{flex:1;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(3,1fr);gap:10px;min-height:0}
-.st{position:relative;border:0;border-radius:20px;background:rgba(255,255,255,.55);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font:inherit;color:inherit;overflow:hidden;box-shadow:0 3px 0 rgba(0,0,0,.12);transition:transform .08s,background .15s}
-.st:active{transform:scale(.97)}
-.st .ic{font-size:44px;line-height:1;filter:grayscale(.7) opacity(.55);transition:filter .15s}
-.st .nm{font-size:13px;font-weight:800;opacity:.7}
-.st .tk{font-size:12px;font-weight:900;margin-top:2px;min-height:16px}
-.st.wait{background:#fff;box-shadow:0 3px 0 #f59e0b,0 0 0 3px #fbbf24 inset;animation:pop .5s ease-out}
-.st.wait .ic{filter:none;animation:wob .6s ease-in-out infinite}
-.st.wait .nm{opacity:1}
-.st.run{background:#dcfce7;box-shadow:0 3px 0 #16a34a}
-.st.run .ic{filter:none}
-.st.done{animation:done .5s ease-out}
-.st.miss{animation:miss .4s}
-.st .ttl{position:absolute;left:10px;right:10px;bottom:8px;height:6px;background:rgba(0,0,0,.1);border-radius:9px;overflow:hidden;display:none}
-.st.wait .ttl,.st.run .ttl{display:block}
-.st .ttl i{display:block;height:100%;background:#f59e0b;width:100%}
-.st.run .ttl i{background:#16a34a;width:0}
-.st.long::after{content:"じっくり";position:absolute;top:8px;right:10px;font-size:10px;font-weight:900;background:#fed7aa;color:#9a3412;padding:1px 7px;border-radius:99px}
-@keyframes pop{0%{transform:scale(.85)}60%{transform:scale(1.04)}100%{transform:scale(1)}}
-@keyframes wob{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(6deg)}}
-@keyframes done{0%{background:#fde047}100%{background:rgba(255,255,255,.55)}}
-@keyframes miss{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
-.me{margin-top:10px;background:rgba(255,255,255,.8);border-radius:16px;padding:8px 12px}
-.me .lb{font-size:12px;font-weight:800;margin-bottom:4px;display:flex;justify-content:space-between}
-.me .gauge i{background:#38bdf8;transition:none}
-.panel{position:absolute;inset:0;background:rgba(14,116,144,.88);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:24px;z-index:5;overflow-y:auto}
+.combo{position:absolute;left:0;right:0;top:78px;text-align:center;font-size:24px;font-weight:900;color:#ea580c;text-shadow:0 3px 0 #fff,0 0 12px #fde047;pointer-events:none;opacity:0;z-index:5}
+.combo.on{opacity:1}
+.status{position:absolute;left:0;right:0;bottom:calc(8px + env(safe-area-inset-bottom));text-align:center;z-index:4;pointer-events:none}
+.status b{display:inline-block;background:#fff;border-radius:99px;padding:5px 14px;font-size:12px;box-shadow:0 2px 0 rgba(0,0,0,.15)}
+svg#scene{flex:1;width:100%;height:100%;display:block}
+.room{cursor:pointer}
+.room .glow{fill:none;stroke:#fbbf24;stroke-width:0;opacity:0}
+.room.wait .glow{stroke-width:4;opacity:1;animation:glow .6s ease-in-out infinite}
+.room.hurry .glow{stroke:#ef4444}
+@keyframes glow{50%{stroke-width:7;opacity:.6}}
+.room .bub{display:none}
+.room.wait .bub{display:block;animation:pop .3s ease-out}
+.room .ico{transform-box:fill-box;transform-origin:center;transition:transform .15s}
+.room.wait .ico{animation:wob .5s ease-in-out infinite}
+@keyframes wob{0%,100%{transform:rotate(-8deg) scale(1.2)}50%{transform:rotate(8deg) scale(1.35)}}
+@keyframes pop{0%{transform:scale(.4);opacity:0}70%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+.room .bub{transform-box:fill-box;transform-origin:50% 100%}
+.room.queued .qd{display:block}
+.qd{display:none}
+.room.done{animation:done .4s ease-out}
+.room.miss .glow{stroke:#ef4444;stroke-width:6;opacity:1}
+.ring{fill:none;stroke:#22c55e;stroke-width:6;stroke-linecap:round;opacity:0;transform:rotate(-90deg);transform-box:fill-box;transform-origin:center}
+.room.run .ring{opacity:1}
+.lblr{font-size:9px;font-weight:900;fill:#fff;paint-order:stroke;stroke:#00000066;stroke-width:3px;text-anchor:middle}
+.dim{transition:opacity .2s}
+#hagi{transition:transform .28s cubic-bezier(.3,.8,.4,1)}
+#hagi.work .body{animation:work .22s infinite alternate}
+@keyframes work{to{transform:translateY(-4px) rotate(-3deg)}}
+.zz{font-size:11px;font-weight:900;fill:#6366f1;animation:zz 2s infinite}
+@keyframes zz{0%{opacity:0;transform:translate(0,6px)}50%{opacity:1}100%{opacity:0;transform:translate(8px,-10px)}}
+.cloud{animation:drift 30s linear infinite}
+@keyframes drift{from{transform:translateX(-60px)}to{transform:translateX(400px)}}
+.panel{position:absolute;inset:0;background:rgba(14,116,144,.92);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:24px;z-index:8;overflow-y:auto}
 .panel.hide{display:none}
-.panel h1{margin:0;font-size:34px;line-height:1.15;text-shadow:0 3px 0 rgba(0,0,0,.25)}
+.panel h1{margin:0;font-size:36px;line-height:1.15;text-shadow:0 3px 0 rgba(0,0,0,.25)}
 .panel h1 small{display:block;font-size:15px;font-weight:800;color:#fde68a;margin-top:6px;letter-spacing:.06em}
-.panel p{margin:0;font-size:14px;line-height:1.6;opacity:.95}
-.how{background:rgba(255,255,255,.14);border-radius:14px;padding:10px 14px;font-size:13px;line-height:1.6;text-align:left;max-width:340px}
+.panel p{margin:0;font-size:14px;line-height:1.6}
+.how{background:rgba(255,255,255,.14);border-radius:14px;padding:10px 14px;font-size:13px;line-height:1.7;text-align:left;max-width:340px}
 .btn{border:0;border-radius:999px;padding:14px 44px;font:inherit;font-size:20px;font-weight:900;color:#fff;background:linear-gradient(90deg,#f97316,#ef4444);box-shadow:0 5px 0 #9a3412;cursor:pointer}
 .btn:active{transform:translateY(3px);box-shadow:0 2px 0 #9a3412}
-.res{font-size:64px;font-weight:900;line-height:1}
+.res{font-size:68px;font-weight:900;line-height:1}
+.rank{font-size:20px;font-weight:900;color:#fde68a}
 .back2{color:#fff;font-size:13px;font-weight:700;text-decoration:underline;opacity:.9}
-.back{position:fixed;left:12px;bottom:calc(8px + env(safe-area-inset-bottom));z-index:9;color:#fff;background:rgba(0,0,0,.4);padding:6px 12px;border-radius:99px;font-size:12px;font-weight:700;text-decoration:none}
-.pop{position:absolute;pointer-events:none;font-weight:900;font-size:22px;color:#b45309;text-shadow:0 2px 0 #fff;animation:up .8s ease-out forwards;z-index:3}
-@keyframes up{to{transform:translateY(-46px);opacity:0}}
+.fx{position:absolute;pointer-events:none;z-index:6;font-size:22px}
+.pop{position:absolute;pointer-events:none;font-weight:900;font-size:30px;color:#ea580c;text-shadow:0 3px 0 #fff,0 0 10px #fde047;animation:up .8s ease-out forwards;z-index:7;white-space:nowrap}
+@keyframes up{0%{transform:translateY(0) scale(.6)}20%{transform:translateY(-10px) scale(1.2)}100%{transform:translateY(-60px) scale(1);opacity:0}}
+.flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:5}
 </style></head>
 <body>
 <div id="app">
-  <div class="top"><div><small>のこり</small><span class="big" id="tm">30</span></div><div style="text-align:right"><small>こなしたTODO</small><span class="big" id="sc">0</span></div></div>
-  <div class="wife"><div class="em" id="wemo">😴</div><div class="bar"><div class="lb"><span>奥さんの ゆっくり度</span><span id="wmsg">ぐっすり</span></div><div class="gauge"><i id="wg"></i></div></div></div>
-  <div class="grid" id="grid"></div>
-  <div class="me"><div class="lb"><span>ハギ</span><span id="mst">待機中</span></div><div class="gauge"><i id="mb" style="width:0"></i></div></div>
+  <div class="hud"><div><small>のこり</small><span class="big" id="tm">30</span></div><div style="text-align:right"><small>スコア</small><span class="big" id="sc">0</span></div></div>
+  <div class="mid"><div class="lb">奥さんの ゆっくり度 <span id="wmsg"></span></div><div class="gauge"><i id="wg"></i></div></div>
+  <div class="combo" id="cb"></div>
+  <svg id="scene" viewBox="0 0 360 560" preserveAspectRatio="xMidYMax meet"></svg>
+  <div class="status"><b id="mst">ハギ: 待機中</b></div>
+  <div class="flash" id="fl"></div>
 
   <div class="panel" id="start">
     <h1>萩の夏休み<small>〜 伝説の40日 〜</small></h1>
-    <p>奥さんの実家に帰省中。<br>奥さんをゆっくり休ませるため、<br>ハギは あらゆるTODOを こなす！</p>
+    <p>奥さんの実家に帰省中。<br>2階で奥さんがぐっすり休んでいる。<br>ハギは 家じゅうのTODOを こなすのだ！</p>
     <div class="how">
-      🟡 光ったTODOを<b>タップ</b>で実行<br>
-      🍳 <b>じっくり系</b>は、始めたら勝手に進む(3秒)<br>
-      ⏱ その間に ほかのTODOを<b>1秒</b>ずつ片付けよう<br>
-      ⚠ 放置すると奥さんが動き出して ゆっくり度が減る<br>
-      🏁 30秒で いくつこなせる?
+      ❗ <b>光って「!」が出た場所</b>をタップ<br>
+      🏃 ハギが走って <b>1秒</b>で片付ける<br>
+      🍳 「じっくり」は始めたら<b>自動で進む</b> → その間に別をやれ!<br>
+      🔥 連続コンボ(8連続〜)・並行作業でボーナス<br>
+      😡 放置すると奥さんが起きる(30秒勝負)
     </div>
     <div id="best" style="font-size:13px;opacity:.9"></div>
     <button class="btn" id="go">スタート</button>
@@ -78,106 +92,210 @@ html,body{margin:0;height:100%;background:#fde68a;font-family:-apple-system,"Hir
   </div>
   <div class="panel hide" id="end">
     <p id="endmsg" style="font-size:18px;font-weight:900">おつかれさま!</p>
-    <div class="res"><span id="fin">0</span><span style="font-size:22px"> 個</span></div>
-    <p id="endsub"></p>
+    <div class="res"><span id="fin">0</span><span style="font-size:22px"> 点</span></div>
+    <div class="rank" id="rank"></div>
+    <p id="endsub" style="white-space:pre-line"></p>
     <button class="btn" id="again">もう一回</button>
     <a class="back2" href="index.html">← アプリへ戻る</a>
   </div>
 </div>
 <script>
-const LIMIT=30;
-const ST=[
- {k:'cook',  nm:'料理',     em:'🍳', dur:3, msg:'ごはん'},
- {k:'wash',  nm:'洗濯',     em:'🧺', dur:3, msg:'せんたく'},
- {k:'bath',  nm:'お風呂',   em:'🛁', dur:2, msg:'おふろ'},
- {k:'clean', nm:'掃除',     em:'🧹', dur:1, msg:'そうじ'},
- {k:'trash', nm:'ゴミ出し', em:'🗑️', dur:1, msg:'ごみ'},
- {k:'weed',  nm:'草むしり', em:'🌿', dur:1, msg:'くさ'}
+const CALM_LOSS=15, TMAX=30, HARD=45, LIMIT=30, NS='http://www.w3.org/2000/svg';
+// 家の断面図(360x560)。1階: 台所/居間/洗面所/風呂、庭: 草むしり/ゴミ出し
+const R=[
+ {k:'cook',nm:'料理',em:'🍳',dur:3,x:20, y:270,w:90,h:150,fy:395},
+ {k:'clean',nm:'掃除',em:'🧹',dur:1,x:110,y:270,w:90,h:150,fy:395},
+ {k:'wash',nm:'洗濯',em:'🧺',dur:3,x:200,y:270,w:70,h:150,fy:395},
+ {k:'bath',nm:'お風呂',em:'🛁',dur:2,x:270,y:270,w:70,h:150,fy:395},
+ {k:'weed',nm:'草むしり',em:'🌿',dur:1,x:20, y:430,w:170,h:110,fy:520},
+ {k:'trash',nm:'ゴミ出し',em:'🗑️',dur:1,x:200,y:430,w:140,h:110,fy:520}
 ];
 const $=id=>document.getElementById(id);
+const el=(n,a,p,t)=>{const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);if(t!=null)e.textContent=t;(p||svg).appendChild(e);return e};
+const svg=$('scene');
+function buildScene(){
+  const defs=el('defs',{});
+  const g1=el('linearGradient',{id:'sky',x1:0,y1:0,x2:0,y2:1},defs);el('stop',{offset:0,'stop-color':'#38bdf8'},g1);el('stop',{offset:1,'stop-color':'#e0f2fe'},g1);
+  el('rect',{x:0,y:0,width:360,height:560,fill:'url(#sky)'});
+  el('circle',{cx:320,cy:46,r:26,fill:'#fde047'});el('circle',{cx:320,cy:46,r:36,fill:'#fde04755'});
+  // 山と雲
+  el('path',{d:'M0 190 L60 120 L110 170 L170 100 L240 180 L300 130 L360 190 L360 270 L0 270Z',fill:'#86efac'});
+  el('path',{d:'M0 220 L80 160 L140 210 L220 150 L300 215 L360 180 L360 270 L0 270Z',fill:'#4ade80'});
+  const c1=el('g',{class:'cloud'});el('ellipse',{cx:60,cy:80,rx:26,ry:11,fill:'#fff',opacity:.9},c1);el('ellipse',{cx:80,cy:74,rx:18,ry:10,fill:'#fff',opacity:.9},c1);
+  // 地面
+  el('rect',{x:0,y:420,width:360,height:140,fill:'#86efac'});
+  el('rect',{x:0,y:428,width:360,height:4,fill:'#4ade80'});
+  // 家: 屋根
+  el('path',{d:'M6 150 L180 62 L354 150 Z',fill:'#b45309'});el('path',{d:'M6 150 L180 62 L354 150 L340 150 L180 74 L20 150Z',fill:'#92400e'});
+  el('rect',{x:20,y:140,width:320,height:130,fill:'#fef3c7',stroke:'#92400e','stroke-width':3});
+  el('rect',{x:20,y:270,width:320,height:150,fill:'#fff7ed',stroke:'#92400e','stroke-width':3});
+  // 2階: 寝室
+  el('rect',{x:30,y:150,width:300,height:112,fill:'#fde68a',opacity:.55,rx:6});
+  el('rect',{x:46,y:190,width:120,height:50,rx:10,fill:'#fff',stroke:'#c7d2fe','stroke-width':3});    // ふとん
+  el('rect',{x:46,y:190,width:42,height:50,rx:10,fill:'#c7d2fe'});
+  el('text',{x:68,y:228,'font-size':30,'text-anchor':'middle'},null,'😴').id='wemo';
+  el('text',{x:110,y:184,class:'zz'},null,'Z');el('text',{x:124,y:176,class:'zz',style:'animation-delay:.7s'},null,'z');
+  el('rect',{x:200,y:162,width:60,height:50,rx:4,fill:'#bae6fd',stroke:'#92400e','stroke-width':3});el('line',{x1:230,y1:162,x2:230,y2:212,stroke:'#92400e','stroke-width':2});
+  el('rect',{x:276,y:162,width:42,height:50,rx:4,fill:'#bae6fd',stroke:'#92400e','stroke-width':3});
+  el('text',{x:180,y:256,'font-size':9,'font-weight':900,fill:'#92400e','text-anchor':'middle'},null,'2階 奥さんの寝室(起こさないで!)');
+  // 1階の仕切り
+  [110,200,270].forEach(x=>el('line',{x1:x,y1:270,x2:x,y2:420,stroke:'#92400e','stroke-width':2.5}));
+  el('rect',{x:20,y:270,width:320,height:5,fill:'#92400e'});
+  // 庭の仕切り
+  el('line',{x1:195,y1:432,x2:195,y2:540,stroke:'#a16207','stroke-width':3,'stroke-dasharray':'6 5'});
+  R.forEach((r,i)=>buildRoom(r,i));
+  // ハギ
+  const h=el('g',{id:'hagi'});const b=el('g',{class:'body'},h);
+  el('ellipse',{cx:0,cy:2,rx:12,ry:3.5,fill:'#0003'},h);
+  el('rect',{x:-7,y:-16,width:5,height:16,rx:2,fill:'#1e3a8a'},b);el('rect',{x:2,y:-16,width:5,height:16,rx:2,fill:'#1e3a8a'},b);   // 脚
+  el('rect',{x:-10,y:-38,width:20,height:24,rx:6,fill:'#3b82f6'},b);                                                                     // 体
+  el('rect',{x:-15,y:-36,width:6,height:16,rx:3,fill:'#3b82f6'},b);el('rect',{x:9,y:-36,width:6,height:16,rx:3,fill:'#3b82f6'},b);        // 腕
+  el('circle',{cx:0,cy:-48,r:11,fill:'#fcd9b6'},b);el('path',{d:'M-11 -50 Q0 -64 11 -50 Q4 -54 -11 -50Z',fill:'#1f2937'},b);
+  el('circle',{cx:-4,cy:-47,r:1.4,fill:'#1f2937'},b);el('circle',{cx:4,cy:-47,r:1.4,fill:'#1f2937'},b);
+  placeHagi(R[1],true);
+}
+function buildRoom(r,i){
+  const g=el('g',{class:'room',id:'rm'+i});
+  const cx=r.x+r.w/2, ey=r.y+r.h*0.46;
+  // 見た目(部屋ごとの家具)
+  el('rect',{x:r.x+2,y:r.y+2,width:r.w-4,height:r.h-4,fill:'#fff',opacity:.001},g); // タップ領域
+  if(r.k==='cook'){el('rect',{x:r.x+6,y:r.y+60,width:r.w-12,height:60,rx:4,fill:'#e5e7eb'},g);el('rect',{x:r.x+6,y:r.y+60,width:r.w-12,height:10,rx:3,fill:'#9ca3af'},g);el('text',{x:r.x+22,y:r.y+54,'font-size':24},g,'🧊');}
+  if(r.k==='clean'){el('rect',{x:r.x+4,y:r.y+r.h-26,width:r.w-8,height:20,rx:3,fill:'#d6b88a'},g);el('text',{x:r.x+12,y:r.y+54,'font-size':26},g,'📺');el('text',{x:r.x+60,y:r.y+r.h-30,'font-size':20},g,'🧸')}
+  if(r.k==='wash'){el('rect',{x:r.x+10,y:r.y+60,width:r.w-20,height:r.h-70,rx:6,fill:'#dbeafe',stroke:'#60a5fa','stroke-width':2.5},g);el('circle',{cx:cx,cy:r.y+102,r:17,fill:'#fff',stroke:'#60a5fa','stroke-width':3},g);}
+  if(r.k==='bath'){el('rect',{x:r.x+6,y:r.y+80,width:r.w-12,height:r.h-90,rx:12,fill:'#e0f2fe',stroke:'#38bdf8','stroke-width':3},g);el('path',{d:'M'+(r.x+12)+' '+(r.y+100)+' q8 -6 16 0 t16 0 t16 0',stroke:'#38bdf8',fill:'none','stroke-width':2.5},g);}
+  if(r.k==='weed'){el('text',{x:r.x+8,y:r.y+40,'font-size':18},g,'🌻');el('text',{x:r.x+135,y:r.y+40,'font-size':18},g,'🌼');el('text',{x:r.x+110,y:r.y+98,'font-size':16},g,'🦋')}
+  if(r.k==='trash'){el('rect',{x:r.x+6,y:r.y+8,width:r.w-12,height:r.h-16,rx:8,fill:'#d6d3d1',opacity:.5},g);el('text',{x:r.x+90,y:r.y+40,'font-size':18},g,'🚛')}
+  // 光る枠
+  el('rect',{class:'glow',x:r.x+3,y:r.y+3,width:r.w-6,height:r.h-6,rx:10},g);
+  // メインアイコン
+  const ic=el('text',{class:'ico',x:cx,y:ey+(r.y>400?16:10),'font-size':r.y>400?42:32,'text-anchor':'middle'},g,r.em);
+  el('text',{class:'lblr',x:cx,y:r.y+r.h-5},g,r.nm);
+  if(r.dur>1)el('text',{class:'lblr',x:cx,y:r.y+14,style:'fill:#fed7aa'},g,'じっくり');
+  // 進行リング
+  const circ=2*Math.PI*24;
+  const rg=el('circle',{class:'ring',cx:cx,cy:ey,r:24,'stroke-dasharray':circ,'stroke-dashoffset':circ,id:'rg'+i},g);
+  el('text',{class:'lblr',id:'tk'+i,x:cx,y:ey+4,style:'font-size:16px;fill:#fff'},g,'');
+  // 吹き出し(TODOの内容)
+  const bx=cx-24,by=r.y-(r.y>400?0:-4);
+  const b=el('g',{class:'bub'},g);
+  const by2=r.y+(r.y>400?6:8);
+  el('rect',{x:bx,y:by2,width:48,height:36,rx:10,fill:'#fff',stroke:'#ef4444','stroke-width':3},b);
+  el('path',{d:'M'+(cx-6)+' '+(by2+35)+' L'+cx+' '+(by2+44)+' L'+(cx+6)+' '+(by2+35)+'Z',fill:'#fff',stroke:'#ef4444','stroke-width':3,'stroke-linejoin':'round'},b);
+  el('rect',{x:cx-8,y:by2+33,width:16,height:5,fill:'#fff'},b);
+  el('text',{x:cx-8,y:by2+27,'font-size':22,'text-anchor':'middle'},b,r.em);
+  el('text',{x:cx+14,y:by2+28,'font-size':22,'font-weight':900,fill:'#ef4444','text-anchor':'middle'},b,'!');
+  el('rect',{x:bx+4,y:by2+40+8,width:40,height:5,rx:3,fill:'#0002',class:'ttlbg'},b);
+  el('rect',{x:bx+4,y:by2+40+8,width:40,height:5,rx:3,fill:'#f59e0b',id:'tt'+i},b);
+  // 次はこれ
+  el('text',{class:'qd lblr',x:cx,y:r.y+r.h-18,style:'fill:#93c5fd;font-size:10px'},g,'▶次');
+  g.addEventListener('pointerdown',e=>{e.preventDefault();tap(i)});
+}
+function placeHagi(r,instant){const h=$('hagi');if(instant)h.style.transition='none';h.setAttribute('style',(instant?'transition:none;':'')+'transform:translate('+(r.x+r.w/2+(r.y>400?-6:-14))+'px,'+r.fy+'px)');if(instant)setTimeout(()=>h.style.transition='',30)}
 let G=null,state='idle',last=0,AC=null,muted=false;
-const best=()=>{try{return +localStorage.getItem('hagi_best')||0}catch(e){return 0}};
+const best=()=>{try{return +localStorage.getItem('hagi_best2')||0}catch(e){return 0}};
 function audioOn(){try{if(!AC)AC=new(window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume()}catch(e){}}
 function tone(f,d,type,v){if(!AC||muted)return;try{const t=AC.currentTime,o=AC.createOscillator(),g=AC.createGain();o.type=type||'triangle';o.frequency.value=f;g.gain.setValueAtTime(v||.12,t);g.gain.exponentialRampToValueAtTime(.001,t+d);o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+d+.02)}catch(e){}}
-const sTap=()=>tone(520,.07,'square',.06), sDone=()=>{tone(784,.12,'triangle',.14);setTimeout(()=>tone(1175,.18,'triangle',.12),90)}, sMiss=()=>{tone(150,.25,'sawtooth',.12)}, sStart=()=>tone(330,.08,'square',.06);
-
-function build(){
-  const g=$('grid');g.innerHTML='';
-  ST.forEach((s,i)=>{const b=document.createElement('button');b.className='st'+(s.dur>1?' long':'');b.id='st'+i;
-    b.innerHTML='<div class="ic">'+s.em+'</div><div class="nm">'+s.nm+'</div><div class="tk" id="tk'+i+'"></div><div class="ttl"><i id="tt'+i+'"></i></div>';
-    b.addEventListener('pointerdown',e=>{e.preventDefault();tap(i)});g.appendChild(b)});
-}
+const SC=[523.25,587.33,659.25,783.99,880,1046.5,1174.66,1318.5];
+const sTap=()=>tone(620,.06,'square',.06);
+const sDone=c=>{const f=SC[Math.min(c,SC.length-1)];tone(f,.14,'triangle',.16);setTimeout(()=>tone(f*1.5,.2,'triangle',.12),70);if(c>=5)setTimeout(()=>tone(f*2,.25,'square',.05),120)};
+const sMiss=()=>{tone(150,.3,'sawtooth',.14);tone(110,.35,'square',.08)};
+const sNew=()=>tone(990,.05,'square',.035);
+const buzz=ms=>{try{navigator.vibrate&&navigator.vibrate(ms)}catch(e){}};
 function reset(){
-  G={t:LIMIT,time:0,score:0,calm:100,spawn:.5,busy:0,busyMax:1,queued:-1,st:ST.map(s=>({s:'idle',ttl:0,ttlMax:0,prog:0})),miss:0};
+  G={t:LIMIT,time:0,score:0,done:0,combo:0,maxCombo:0,calm:100,spawn:.4,busy:0,busyMax:1,work:-1,queued:-1,st:R.map(()=>({s:'idle',ttl:0,ttlMax:0,prog:0})),miss:0};
   paint();
 }
-function setCls(i,c){const e=$('st'+i);e.classList.remove('wait','run','done','miss');if(c)e.classList.add(c)}
-function popAt(i,txt){const e=$('st'+i),r=e.getBoundingClientRect(),a=$('app').getBoundingClientRect(),p=document.createElement('div');p.className='pop';p.textContent=txt;p.style.left=(r.left-a.left+r.width/2-30)+'px';p.style.top=(r.top-a.top+10)+'px';$('app').appendChild(p);setTimeout(()=>p.remove(),850)}
+const room=i=>$('rm'+i);
+function pos(i){const r=room(i).getBoundingClientRect(),a=$('app').getBoundingClientRect();return{x:r.left-a.left+r.width/2,y:r.top-a.top+r.height*.45}}
+function popText(i,txt,col){const p=pos(i),d=document.createElement('div');d.className='pop';d.textContent=txt;if(col)d.style.color=col;d.style.left=(p.x-28)+'px';d.style.top=(p.y-30)+'px';$('app').appendChild(d);setTimeout(()=>d.remove(),850)}
+function burst(i,emojis,n){const p=pos(i);for(let k=0;k<n;k++){const e=document.createElement('div');e.className='fx';e.textContent=emojis[Math.floor(Math.random()*emojis.length)];e.style.left=p.x+'px';e.style.top=p.y+'px';$('app').appendChild(e);
+  const a=Math.random()*6.28,dist=50+Math.random()*80,dx=Math.cos(a)*dist,dy=Math.sin(a)*dist-30;
+  e.animate([{transform:'translate(-50%,-50%) scale(.5)',opacity:1},{transform:'translate(calc(-50% + '+dx+'px),calc(-50% + '+dy+'px)) scale(1.3) rotate('+(Math.random()*360)+'deg)',opacity:0}],{duration:650+Math.random()*250,easing:'cubic-bezier(.2,.8,.3,1)'}).onfinish=()=>e.remove()}}
+function flash(a){$('fl').animate([{opacity:a},{opacity:0}],{duration:260})}
+function shake(){const a=$('app');a.classList.remove('shake');void a.offsetWidth;a.classList.add('shake')}
+function bump(id){const e=$(id);e.classList.remove('bump');void e.offsetWidth;e.classList.add('bump')}
 function paint(){
-  ST.forEach((s,i)=>{const x=G.st[i];setCls(i,x.s==='wait'?'wait':x.s==='run'?'run':'');$('tk'+i).textContent=x.s==='wait'?'やって!':x.s==='run'?'進行中…':''});
-  $('tm').textContent=Math.ceil(G.t);$('sc').textContent=G.score;
-  $('wg').style.width=G.calm+'%';
+  R.forEach((r,i)=>{const x=G.st[i],e=room(i);e.classList.remove('wait','run','hurry','queued');
+    if(x.s==='wait'){e.classList.add('wait');if(x.ttl/x.ttlMax<.4)e.classList.add('hurry');if(G.queued===i)e.classList.add('queued')}
+    else if(x.s==='run'||x.s==='doing')e.classList.add('run');
+    if(x.s!=='run'&&x.s!=='doing')$('tk'+i).textContent=''});
+  $('sc').textContent=G.score;$('wg').style.width=G.calm+'%';
   $('wemo').textContent=G.calm>66?'😴':G.calm>33?'😌':G.calm>0?'😟':'😵';
-  $('wmsg').textContent=G.calm>66?'ぐっすり':G.calm>33?'ちょっと気になる':G.calm>0?'そわそわ…':'動き出した!';
+  $('wmsg').textContent=G.calm>66?'ぐっすり':G.calm>33?'ちょっと気になる':G.calm>0?'そわそわ…':'起きた!';
+  const cb=$('cb');if(G.combo>=2){cb.textContent='🔥 COMBO x'+G.combo+(G.combo>=16?'  +3点':G.combo>=8?'  +2点':'');cb.classList.add('on')}else cb.classList.remove('on');
 }
-function startTask(i){ // ハギが作業を始める
-  const x=G.st[i],s=ST[i];
-  if(s.dur>1){G.busy=G.busyMax=.5;x.s='run';x.prog=0;x.run=s.dur;G.work=i;}
-  else{G.busy=G.busyMax=1;x.s='doing';G.work=i}
+function startTask(i){
+  const x=G.st[i],r=R[i];G.work=i;placeHagi(r);$('hagi').classList.add('work');
+  if(r.dur>1){G.busy=G.busyMax=.5;x.s='run';x.prog=0;x.run=r.dur}
+  else{G.busy=G.busyMax=1;x.s='doing'}
 }
 function tap(i){
-  if(state!=='play'){return}
+  if(state!=='play')return;
   const x=G.st[i];if(x.s!=='wait')return;
-  sTap();
-  if(G.busy>0){G.queued=i;return}
+  sTap();buzz(8);
+  if(G.busy>0){G.queued=i;paint();return}
   startTask(i);paint();
 }
 function finish(i){
-  const x=G.st[i];x.s='idle';G.score++;sDone();popAt(i,'+1');setCls(i,'done');$('tk'+i).textContent='';
-  const e=$('st'+i);e.classList.add('done');setTimeout(()=>e.classList.remove('done'),500);
+  const x=G.st[i];x.s='idle';
+  const c=G.combo;G.combo++;G.maxCombo=Math.max(G.maxCombo,G.combo);
+  const pts=G.combo>=16?3:G.combo>=8?2:1;G.score+=pts;G.done++;
+  // 並行ボーナス: 別の「じっくり」が進行中のあいだに終わらせると +1
+  const par=G.st.some((y,k)=>k!==i&&y.s==='run');
+  if(par){G.score+=1;G.para=(G.para||0)+1;setTimeout(()=>popText(i,'並行! +1','#2563eb'),120)}
+  sDone(c);buzz(18);bump('sc');
+  popText(i,'+'+pts,pts>1?'#dc2626':null);
+  burst(i,pts>1?['⭐','✨','🔥']:['✨','⭐'],pts>1?14:8);
+  if(G.combo===8||G.combo===16){flash(.55);shake()}
+  const e=room(i);e.classList.remove('done');void e.offsetWidth;e.classList.add('done');
+  const circ=2*Math.PI*24;$('rg'+i).setAttribute('stroke-dashoffset',circ);
 }
 function spawn(){
   const idle=G.st.map((x,i)=>x.s==='idle'?i:-1).filter(i=>i>=0);
   if(!idle.length)return;
   const i=idle[Math.floor(Math.random()*idle.length)],x=G.st[i];
-  x.s='wait';x.ttlMax=x.ttl=Math.max(3.6,7.5-G.time*.12);
-  const e=$('st'+i);e.classList.remove('wait');void e.offsetWidth;paint();
+  x.s='wait';x.ttlMax=x.ttl=Math.max(2.8,5.0-G.time*.08);sNew();paint();
 }
 function update(dt){
-  G.time+=dt;G.t-=dt;
-  // 出現
-  G.spawn-=dt;
-  if(G.spawn<=0){spawn();G.spawn=Math.max(.55,1.35-G.time*.03)*(.8+Math.random()*.5)}
-  // ハギの作業
+  G.time+=dt;G.t-=dt;G.t=Math.min(G.t,HARD-G.time);G.spawn-=dt;
+  if(G.spawn<=0){spawn();G.spawn=Math.max(.34,.8-G.time*.018)*(.85+Math.random()*.35)}
   if(G.busy>0){G.busy-=dt;
-    if(G.busy<=0){G.busy=0;
-      const i=G.work;if(i>=0){const x=G.st[i];if(x.s==='doing'){finish(i);G.work=-1}else if(x.s==='run'){G.work=-1}}
-      if(G.queued>=0){const q=G.queued;G.queued=-1;if(G.st[q].s==='wait'){startTask(q)}}
+    if(G.busy<=0){G.busy=0;const i=G.work;
+      if(i>=0&&G.st[i].s==='doing')finish(i);
+      G.work=-1;$('hagi').classList.remove('work');
+      if(G.queued>=0){const q=G.queued;G.queued=-1;if(G.st[q].s==='wait')startTask(q)}
       paint()}
   }
-  // 進行中(じっくり)
+  const circ=2*Math.PI*24;
   G.st.forEach((x,i)=>{
-    if(x.s==='run'){x.prog+=dt;const r=Math.min(1,x.prog/x.run);$('tt'+i).style.width=(r*100)+'%';if(x.prog>=x.run){finish(i);paint()}}
-    else if(x.s==='wait'){x.ttl-=dt;$('tt'+i).style.width=Math.max(0,x.ttl/x.ttlMax*100)+'%';
-      if(x.ttl<=0){x.s='idle';G.calm=Math.max(0,G.calm-20);G.miss++;sMiss();const e=$('st'+i);e.classList.add('miss');setTimeout(()=>e.classList.remove('miss'),400);popAt(i,'😡');paint()}}
+    if(x.s==='doing'){$('rg'+i).setAttribute('stroke-dashoffset',circ*(G.busy/G.busyMax))}
+    else if(x.s==='run'){x.prog+=dt;const rr=Math.min(1,x.prog/x.run);$('rg'+i).setAttribute('stroke-dashoffset',circ*(1-rr));
+      $('tk'+i).textContent=Math.max(1,Math.ceil(x.run-x.prog));
+      if(x.prog>=x.run){finish(i);paint()}}
+    else if(x.s==='wait'){x.ttl-=dt;$('tt'+i).setAttribute('width',Math.max(0,x.ttl/x.ttlMax*40));
+      if(x.ttl/x.ttlMax<.4&&!room(i).classList.contains('hurry'))room(i).classList.add('hurry');
+      if(x.ttl<=0){x.s='idle';if(G.queued===i)G.queued=-1;G.calm=Math.max(0,G.calm-CALM_LOSS);G.miss++;G.combo=0;sMiss();buzz([40,30,60]);shake();
+        const e=room(i);e.classList.add('miss');setTimeout(()=>e.classList.remove('miss'),450);popText(i,'😡 -'+CALM_LOSS,'#b91c1c');paint()}}
   });
-  $('mb').style.width=G.busy>0?((1-G.busy/G.busyMax)*100)+'%':'0';
-  $('mst').textContent=G.busy>0?(G.work>=0?ST[G.work].nm+'中…':'作業中…'):(G.queued>=0?'次: '+ST[G.queued].nm:'待機中');
-  $('tm').textContent=Math.max(0,Math.ceil(G.t));$('sc').textContent=G.score;
+  const m=$('mst');
+  m.textContent=G.busy>0&&G.work>=0?'ハギ: '+R[G.work].nm+'をやってる!':(G.st.some(x=>x.s==='run')?'ハギ: 手が空いた! 次をタップ':'ハギ: 待機中');
+  $('tm').textContent=Math.max(0,Math.ceil(G.t));$('tm').classList.toggle('low',G.t<=5);
   if(G.calm<=0||G.t<=0)end(G.calm<=0)
 }
+function rankOf(n){return n>=45?'👑 伝説の夫':n>=32?'🏆 理想の夫':n>=22?'🥇 頼れる夫':n>=12?'🥈 がんばる夫':'🥉 修行中の夫'}
 function end(woke){
   state='over';paint();
-  const b=best(),nb=G.score>b;if(nb){try{localStorage.setItem('hagi_best',String(G.score))}catch(e){}}
-  $('fin').textContent=G.score;
-  $('endmsg').textContent=woke?'奥さんが動き出しちゃった…':nb?'🎉 自己ベスト更新!':'おつかれさま!';
-  $('endsub').textContent=(woke?'':'奥さんは ゆっくり休めました。')+' 自己ベスト '+Math.max(b,G.score)+'個 ／ 見逃し '+G.miss+'回';
-  setTimeout(()=>$('end').classList.remove('hide'),woke?600:400);
+  const b=best(),nb=G.score>b;if(nb){try{localStorage.setItem('hagi_best2',String(G.score))}catch(e){}}
+  $('fin').textContent=G.score;$('rank').textContent=rankOf(G.score);
+  $('endmsg').textContent=woke?'奥さんが起きちゃった…':nb?'🎉 自己ベスト更新!':'おつかれさま!';
+  $('endsub').textContent=(woke?'':'奥さんは ゆっくり休めました。\n')+'こなしたTODO '+G.done+'個 ／ 最大コンボ '+G.maxCombo+' ／ 並行 '+(G.para||0)+'回 ／ 自己ベスト '+Math.max(b,G.score)+'点';
+  setTimeout(()=>$('end').classList.remove('hide'),woke?700:500);
 }
-function begin(){audioOn();reset();state='play';$('start').classList.add('hide');$('end').classList.add('hide');sStart()}
+function begin(){audioOn();reset();state='play';$('start').classList.add('hide');$('end').classList.add('hide');tone(330,.08,'square',.07);setTimeout(()=>tone(660,.1,'square',.07),90)}
 function loop(ts){const dt=Math.min(.05,(ts-last)/1000||0);last=ts;if(state==='play')update(dt);requestAnimationFrame(loop)}
-build();reset();
-$('best').textContent=best()?'自己ベスト '+best()+'個':'';
+buildScene();reset();
+$('best').textContent=best()?'自己ベスト '+best()+'点':'';
 $('go').addEventListener('click',begin);$('again').addEventListener('click',begin);
+document.addEventListener('visibilitychange',()=>{if(AC){try{document.hidden?AC.suspend():AC.resume()}catch(e){}}});
 requestAnimationFrame(loop);
 </script></body></html>
