@@ -191,8 +191,8 @@ function openStop(){if(!op)return;const o=op;op=null;clearInterval(o.timer);try{
 // 画面を最初にタップした時に鳴り始める(ブラウザは操作前に音を出せないため)
 document.addEventListener('pointerdown',()=>{if(state==='idle'){audioOn();openStart()}});
 document.addEventListener('visibilitychange',()=>{if(!AC)return;try{document.hidden?AC.suspend():AC.resume()}catch(e){}});
-const GOLD_RATE=.08;
-const TMAX=30, HARD=40, GOLD_MAX=3, DEPTH_MAX=1000000, RUSH_CHANCE=.12, RUSH_RATE=.7;
+const GOLD_RATE=.14;
+const TMAX=30, HARD=40, GOLD_MAX=5, RUSH_MAX=14, DEPTH_MAX=1000000, RUSH_CHANCE=.25, RUSH_RATE=.85;
 const LIMIT=15, PXM=26;
 const ITEM_KINDS=[{k:'item_tank',w:3,m:'酸素ボンベ！ +12m'},{k:'item_string',w:4,m:'弦ゲット +4m'},{k:'item_star',w:2,m:'ステージダイブ！ 4秒ダブル'},{k:'item_clock',w:2,m:'時計 +2秒'},{k:'item_bad',w:3,m:'ハウリング… 浮かされた'}];
 const OBS=[{k:'ob_cable',w:78,h:39},{k:'ob_speaker',w:54,h:72},{k:'ob_amp',w:64,h:55}];
@@ -202,7 +202,7 @@ function reset(){S={t:LIMIT,depth:0,v:0,time:0,objs:[],nextSpawn:6,bubbles:[],db
 function pickItem(){const tot=ITEM_KINDS.reduce((a,b)=>a+b.w,0);let r=Math.random()*tot;for(const it of ITEM_KINDS){if((r-=it.w)<=0)return it}return ITEM_KINDS[0]}
 function spawn(){
   const x=W*(.12+Math.random()*.76);
-  if((S.goldN||0)<GOLD_MAX&&Math.random()<S.goldRate){S.goldN=(S.goldN||0)+1;S.objs.push({type:'item',it:{k:'item_gold'},k:'item_gold',x,d:S.depth+34,w:52,h:52})}
+  if((S.goldN||0)<(S.goldRate===RUSH_RATE?RUSH_MAX:GOLD_MAX)&&Math.random()<S.goldRate){S.goldN=(S.goldN||0)+1;S.objs.push({type:'item',it:{k:'item_gold'},k:'item_gold',x,d:S.depth+34,w:52,h:52})}
   else if(Math.random()<.42){const it=pickItem();S.objs.push({type:'item',it,k:it.k,x,d:S.depth+34,w:it.k==='item_string'?38:34,h:it.k==='item_string'?47:34})}
   else{const o=OBS[Math.floor(Math.random()*OBS.length)];S.objs.push({type:'ob',k:o.k,x,d:S.depth+34,w:o.w,h:o.h})}
   S.nextSpawn=S.depth+34+ (4+Math.random()*7);
