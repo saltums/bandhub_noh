@@ -118,7 +118,7 @@ RIFF[8]=138.59;RIFF[9]=155.56;
 let bgm=null;
 function noiseBuf(){const n=AC.sampleRate*.3,bf=AC.createBuffer(1,n,AC.sampleRate),d=bf.getChannelData(0);for(let i=0;i<n;i++)d[i]=Math.random()*2-1;return bf}
 function bgmNote(t,f,dur,type,vol,dest){const o=AC.createOscillator(),g=AC.createGain();o.type=type;o.frequency.setValueAtTime(f,t);g.gain.setValueAtTime(0.0001,t);g.gain.linearRampToValueAtTime(vol,t+.006);g.gain.setValueAtTime(vol*.8,t+dur*.6);g.gain.linearRampToValueAtTime(0.0001,t+dur);o.connect(g);g.connect(dest);o.start(t);o.stop(t+dur+.02)}
-function bgmNoise(t,dur,vol,hp,dest){const s=AC.createBufferSource(),g=AC.createGain(),fl=AC.createBiquadFilter();s.buffer=bgm.nb;fl.type='highpass';fl.frequency.value=hp;g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);s.connect(fl);fl.connect(g);g.connect(dest);s.start(t);s.stop(t+dur+.02)}
+function bgmNoise(t,dur,vol,hp,dest){const s=AC.createBufferSource(),g=AC.createGain(),fl=AC.createBiquadFilter();s.buffer=(bgm||op).nb;fl.type='highpass';fl.frequency.value=hp;g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);s.connect(fl);fl.connect(g);g.connect(dest);s.start(t);s.stop(t+dur+.02)}
 function bgmKick(t,dest){const o=AC.createOscillator(),g=AC.createGain();o.type='square';o.frequency.setValueAtTime(150,t);o.frequency.exponentialRampToValueAtTime(45,t+.12);g.gain.setValueAtTime(.22,t);g.gain.exponentialRampToValueAtTime(.001,t+.14);o.connect(g);g.connect(dest);o.start(t);o.stop(t+.16)}
 function bgmBubble(t,dest){const o=AC.createOscillator(),g=AC.createGain(),f=500+Math.random()*900;o.type='sine';o.frequency.setValueAtTime(f,t);o.frequency.exponentialRampToValueAtTime(f*1.8,t+.09);g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(.05,t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+.12);o.connect(g);g.connect(dest);o.start(t);o.stop(t+.14)}
 function bgmSwish(t,dur,dest){const s=AC.createBufferSource(),g=AC.createGain(),fl=AC.createBiquadFilter();s.buffer=bgm.nb;fl.type='lowpass';fl.Q.value=2;fl.frequency.setValueAtTime(250,t);fl.frequency.exponentialRampToValueAtTime(1400,t+dur*.6);fl.frequency.exponentialRampToValueAtTime(250,t+dur);g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(.09,t+dur*.5);g.gain.linearRampToValueAtTime(.0001,t+dur);s.connect(fl);fl.connect(g);g.connect(dest);s.start(t);s.stop(t+dur+.05)}
@@ -153,19 +153,37 @@ function bgmStop(){if(!bgm)return;const o=bgm;bgm=null;clearInterval(o.timer);tr
 // ---- オープニング曲 (G#3 G#3 G3 ー ー ー / F3 F3 G3 ー ー ー / G#3 G#3 G3 ー ー ー / F3 ー ー G3 G3 G3)
 const OP_RIFF=[[207.65,1],[207.65,1],[196,4],[174.61,1],[174.61,1],[196,4],[207.65,1],[207.65,1],[196,4],[174.61,3],[196,1],[196,1],[196,1]];
 let op=null;
+const OP_HARM={207.65:311.13,196:293.66,174.61:261.63}; // 各音の5度上(パワーコード)
 function openStart(){
   if(!AC||op||bgm||state!=='idle')return;
   const out=AC.createGain();out.gain.value=muted?0:1;out.connect(AC.destination);
-  op={out,i:0,next:AC.currentTime+.1,step:.15,pos:0,timer:0};
+  // 1小節=24ステップに展開(開始位置と長さ)
+  const steps=[];let p=0;OP_RIFF.forEach(([f,n])=>{steps[p]={f,n};p+=n});
+  op={out,nb:noiseBuf(),pos:0,lap:0,next:AC.currentTime+.1,step:.14,timer:0};
+  const sd=()=>op.step;
   op.timer=setInterval(()=>{
     if(!op)return;
     while(op.next<AC.currentTime+.2){
-      const [f,n]=OP_RIFF[op.i],d=op.step*n,t=op.next;
-      bgmNote(t,f,d*.95,'square',.085,out);       // リード
-      bgmNote(t,f/2,d*.95,'triangle',.16,out);    // ベース
-      bgmNote(t,f*2,Math.min(d,.5),'square',.025,out);
-      if(op.pos%6===0)bgmKick(t,out);
-      op.pos+=n;op.next+=d;op.i=(op.i+1)%OP_RIFF.length;
+      const t=op.next,pos=op.pos,lap=op.lap%4,s=steps[pos],d=sd();
+      if(s){
+        const L=d*s.n;
+        bgmNote(t,s.f,L*.95,'square',.08,out);               // リード
+        bgmNote(t,s.f/2,L*.97,'triangle',.17,out);           // ベース
+        bgmNote(t,s.f*2,Math.min(L,.5),'square',.022,out);
+        if(lap>=2){bgmNote(t,OP_HARM[Math.round(s.f*100)/100]||s.f*1.5,L*.9,'square',.04,out);} // パワーコード
+      }
+      const cur=(()=>{for(let k=pos;k>=0;k--)if(steps[k])return steps[k];})();
+      if(lap>=1){
+        if(pos%6===0)bgmKick(t,out);
+        if(pos%3===0)bgmNoise(t,.03,.05,7000,out);           // ハイハット
+      }
+      if(lap>=2&&pos%6===3)bgmNoise(t,.12,.13,1800,out);     // スネア
+      if(lap===3){
+        if(pos%2===1)bgmNote(t,cur.f*4,d*.8,'square',.03,out); // 伸ばし中の16分アルペジオ
+        if(pos>=21)bgmNoise(t,.08,.14,1800,out);              // 終わりのフィル
+      }
+      op.pos++;op.next+=d;
+      if(op.pos>=24){op.pos=0;op.lap++}
     }
   },25);
 }
