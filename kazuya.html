@@ -106,7 +106,7 @@ function ui(){
     const n=S.seq.length,gap=Math.min(44,(W-60)/n),x0=W/2-(n-1)*gap/2;
     S.seq.forEach((d,i)=>arrow(x0+i*gap,622,d,i<S.idx?11:15,i<S.idx?'#4ade80':(i===S.idx&&S.phase==='dir'?'#fde047':'#fff')));
     ctx.fillStyle='rgba(255,255,255,.15)';rr(24,660,W-48,92,10);ctx.fill();
-    if(S.phase==='dir')txt('指でなぞる(画面のどこでもOK・ゆるめ判定)',W/2,706,13,'#9ab','center');
+    if(S.phase==='dir')txt('指でなぞる(画面のどこでもOK)',W/2,706,13,'#9ab','center');
     else{const p=S.btnT/2,r=34+Math.sin(S.time*20)*3;ctx.fillStyle='#e11d48';ctx.beginPath();ctx.arc(W-70,706,r,0,6.3);ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=4;ctx.stroke();txt('A',W-70,706,34,'#fff','center');
       ctx.fillStyle='#fde047';ctx.fillRect(40,742,(W-80)*Math.max(0,1-p),5)}
   }
@@ -132,9 +132,11 @@ function success(){const i=S.tech,e=S.enemy,pts=TECH_PTS[i];S.swing=.001;S.flash
 let sx=0,sy=0,down=false;
 function pos(ev){const r=cv.getBoundingClientRect();return[(ev.clientX-r.left)/r.width*W,(ev.clientY-r.top)/r.height*H]}
 cv.addEventListener('pointerdown',ev=>{ev.preventDefault();A();if(ac&&ac.state==='suspended')ac.resume();const[x,y]=pos(ev);sx=x;sy=y;down=true;tap(x,y)});
-cv.addEventListener('pointermove',ev=>{if(!down||!S||state!=='play'||S.phase!=='dir')return;const[x,y]=pos(ev),dx=x-sx,dy=y-sy;if(Math.hypot(dx,dy)<16)return;
-  const d=Math.abs(dx)>Math.abs(dy)?(dx>0?'R':'L'):(dy>0?'D':'U');sx=x;sy=y;
-  if(d===S.seq[S.idx]){okd(S.idx);S.idx++;if(S.idx>=S.seq.length){S.phase='btn';S.btnT=2}}else{tone(200,.08,'square',.05);S.bad=.15}});
+cv.addEventListener('pointermove',ev=>{if(!down||!S||state!=='play'||S.phase!=='dir')return;const[x,y]=pos(ev),dx=x-sx,dy=y-sy;if(Math.hypot(dx,dy)<20)return;
+  const ax=Math.abs(dx),ay=Math.abs(dy);if(Math.max(ax,ay)<Math.min(ax,ay)*1.6){return}   // 斜めは判定保留
+  const d=ax>ay?(dx>0?'R':'L'):(dy>0?'D':'U');sx=x;sy=y;
+  if(S.idx>0&&d===S.seq[S.idx-1])return;                   // 同じ向きへの行きすぎは無視
+  if(d===S.seq[S.idx]){okd(S.idx);S.idx++;if(S.idx>=S.seq.length){S.phase='btn';S.btnT=2}}else fail('ちがう！')});
 addEventListener('pointerup',()=>{down=false});
 function tap(x,y){
   if(state==='title'){if(y>500&&y<600){reset();state='play'}return}
