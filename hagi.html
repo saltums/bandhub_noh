@@ -47,6 +47,12 @@ svg#scene{flex:1;width:100%;height:100%;display:block}
 #hagi{transition:transform .28s cubic-bezier(.3,.8,.4,1)}
 #hagi.work .body{animation:work .22s infinite alternate}
 @keyframes work{to{transform:translateY(-4px) rotate(-3deg)}}
+.kid{transition:transform .7s cubic-bezier(.3,.9,.3,1)}
+.kid .kb{display:none}
+.kid.wait .kb{display:block;animation:pop .3s ease-out}
+.kid.wait .kem{animation:hop .45s ease-in-out infinite}
+@keyframes hop{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+.kid .kem{transform-box:fill-box;transform-origin:center bottom}
 .zz{font-size:11px;font-weight:900;fill:#6366f1;animation:zz 2s infinite}
 @keyframes zz{0%{opacity:0;transform:translate(0,6px)}50%{opacity:1}100%{opacity:0;transform:translate(8px,-10px)}}
 .cloud{animation:drift 30s linear infinite}
@@ -84,6 +90,7 @@ svg#scene{flex:1;width:100%;height:100%;display:block}
       🔴 <b>つきっきり</b>(1秒): ハギが手を止めて片付ける<br>
       🟢 <b>並行OK</b>(2〜3秒): 始めたら<b>ほったらかしで進む</b> → その間に別をやれ!<br>
       🔥 連続コンボ(8連続〜)・並行作業でボーナス<br>
+      👦 たまに子どもが「あそんで!」→ 1.5秒遊ぶと +3点、無視すると…<br>
       😡 放置すると奥さんが起きる(30秒勝負)
     </div>
     <div id="best" style="font-size:13px;opacity:.9"></div>
@@ -144,6 +151,19 @@ function buildScene(){
   // 庭の仕切り
   el('line',{x1:195,y1:432,x2:195,y2:540,stroke:'#a16207','stroke-width':3,'stroke-dasharray':'6 5'});
   R.forEach((r,i)=>buildRoom(r,i));
+  // 子ども(たまに画面外から来て「あそんで!」)
+  const kd=el('g',{id:'kid',class:'kid',style:'transform:translate(-120px,500px)'});
+  el('rect',{x:-34,y:-80,width:68,height:96,fill:'#fff',opacity:.001},kd);
+  el('ellipse',{cx:0,cy:12,rx:14,ry:4,fill:'#0003'},kd);
+  el('text',{class:'kem',x:0,y:8,'font-size':44,'text-anchor':'middle'},kd,'🧒').id='kemo';
+  const kb=el('g',{class:'kb'},kd);
+  el('rect',{x:-40,y:-98,width:80,height:30,rx:10,fill:'#fff',stroke:'#ec4899','stroke-width':3},kb);
+  el('path',{d:'M-6 -69 L0 -60 L6 -69Z',fill:'#fff',stroke:'#ec4899','stroke-width':3,'stroke-linejoin':'round'},kb);
+  el('rect',{x:-9,y:-71,width:18,height:5,fill:'#fff'},kb);
+  el('text',{x:0,y:-77,'font-size':14,'font-weight':900,fill:'#ec4899','text-anchor':'middle'},kb,'あそんで!');
+  el('rect',{x:-30,y:-62-6,width:60,height:5,rx:3,fill:'#0002'},kb);
+  el('rect',{x:-30,y:-68,width:60,height:5,rx:3,fill:'#ec4899',id:'kt'},kb);
+  kd.addEventListener('pointerdown',e=>{e.preventDefault();tapKid()});
   // ハギ
   const h=el('g',{id:'hagi'});const b=el('g',{class:'body'},h);
   el('ellipse',{cx:0,cy:2,rx:12,ry:3.5,fill:'#0003'},h);
@@ -202,11 +222,11 @@ const sMiss=()=>{tone(150,.3,'sawtooth',.14);tone(110,.35,'square',.08)};
 const sNew=()=>tone(990,.05,'square',.035);
 const buzz=ms=>{try{navigator.vibrate&&navigator.vibrate(ms)}catch(e){}};
 function reset(){
-  G={t:LIMIT,time:0,score:0,done:0,combo:0,maxCombo:0,calm:100,spawn:.4,busy:0,busyMax:1,work:-1,queued:-1,st:R.map(()=>({s:'idle',ttl:0,ttlMax:0,prog:0})),miss:0};
-  paint();
+  G={t:LIMIT,time:0,score:0,done:0,combo:0,maxCombo:0,calm:100,spawn:.4,busy:0,busyMax:1,work:-1,queued:-1,st:R.map(()=>({s:'idle',ttl:0,ttlMax:0,prog:0})),miss:0,kid:null,nextKid:7+Math.random()*4,kids:0};
+  hideKid(true);paint();
 }
 const room=i=>$('rm'+i);
-function pos(i){const r=room(i).getBoundingClientRect(),a=$('app').getBoundingClientRect();return{x:r.left-a.left+r.width/2,y:r.top-a.top+r.height*.45}}
+function pos(i){const r=(i==='kid'?$('kid'):room(i)).getBoundingClientRect(),a=$('app').getBoundingClientRect();return{x:r.left-a.left+r.width/2,y:r.top-a.top+r.height*.45}}
 function popText(i,txt,col){const p=pos(i),d=document.createElement('div');d.className='pop';d.textContent=txt;if(col)d.style.color=col;d.style.left=(p.x-28)+'px';d.style.top=(p.y-30)+'px';$('app').appendChild(d);setTimeout(()=>d.remove(),850)}
 function burst(i,emojis,n){const p=pos(i);for(let k=0;k<n;k++){const e=document.createElement('div');e.className='fx';e.textContent=emojis[Math.floor(Math.random()*emojis.length)];e.style.left=p.x+'px';e.style.top=p.y+'px';$('app').appendChild(e);
   const a=Math.random()*6.28,dist=50+Math.random()*80,dx=Math.cos(a)*dist,dy=Math.sin(a)*dist-30;
@@ -256,14 +276,45 @@ function spawn(){
   const i=idle[Math.floor(Math.random()*idle.length)],x=G.st[i];
   x.s='wait';x.ttlMax=x.ttl=Math.max(2.8,5.0-G.time*.08);sNew();paint();
 }
+const KID=99;
+function hideKid(instant){const k=$('kid');k.classList.remove('wait');const side=Math.random()<.5?-120:480;k.style.transition=instant?'none':'';k.style.transform='translate('+side+'px,500px)';if(instant)setTimeout(()=>k.style.transition='',30)}
+function spawnKid(){
+  const x=70+Math.random()*220;G.kid={s:'wait',ttl:5.2,ttlMax:5.2,x};
+  const k=$('kid');k.classList.add('wait');$('kemo').textContent=Math.random()<.5?'🧒':'👧';
+  const fromLeft=x<180;k.style.transition='none';k.style.transform='translate('+(fromLeft?-120:480)+'px,500px)';void k.getBoundingClientRect();k.style.transition='';k.style.transform='translate('+x+'px,500px)';
+  tone(880,.08,'triangle',.07);setTimeout(()=>tone(1175,.1,'triangle',.07),90);
+}
+function tapKid(){
+  if(state!=='play'||!G.kid||G.kid.s!=='wait')return;
+  sTap();buzz(8);
+  if(G.busy>0){G.queued=KID;return}
+  startKid();
+}
+function startKid(){
+  G.kid.s='doing';G.work=-2;G.busy=G.busyMax=1.5;
+  const h=$('hagi');h.setAttribute('style','transform:translate('+(G.kid.x-18)+'px,520px)');h.classList.add('work');
+  $('kemo').textContent='🥰';
+}
+function finishKid(){
+  const c=G.combo;G.combo++;G.maxCombo=Math.max(G.maxCombo,G.combo);
+  const pts=3;G.score+=pts;G.done++;G.kids++;
+  sDone(c);buzz([20,20,40]);bump('sc');
+  popText('kid','+3 💕','#db2777');burst('kid',['💕','💖','✨'],14);
+  const k=$('kid');k.classList.remove('wait');k.style.transform='translate('+(G.kid.x<180?-120:480)+'px,500px)';
+  G.kid=null;G.nextKid=8+Math.random()*5;
+}
 function update(dt){
   G.time+=dt;G.t-=dt;G.t=Math.min(G.t,HARD-G.time);G.spawn-=dt;
+  if(!G.kid){G.nextKid-=dt;if(G.nextKid<=0&&G.time>5)spawnKid()}
+  else if(G.kid.s==='wait'){G.kid.ttl-=dt;$('kt').setAttribute('width',Math.max(0,G.kid.ttl/G.kid.ttlMax*60));
+    if(G.kid.ttl<=0){G.calm=Math.max(0,G.calm-CALM_LOSS);G.miss++;G.combo=0;sMiss();buzz([40,30,60]);shake();popText('kid','😭 -'+CALM_LOSS,'#b91c1c');const k=$('kid');k.classList.remove('wait');k.style.transform='translate('+(G.kid.x<180?-120:480)+'px,500px)';if(G.queued===KID)G.queued=-1;G.kid=null;G.nextKid=8+Math.random()*5;paint()}}
   if(G.spawn<=0){spawn();G.spawn=Math.max(.34,.8-G.time*.018)*(.85+Math.random()*.35)}
   if(G.busy>0){G.busy-=dt;
     if(G.busy<=0){G.busy=0;const i=G.work;
       if(i>=0&&G.st[i].s==='doing')finish(i);
+      if(i===-2&&G.kid)finishKid();
       G.work=-1;$('hagi').classList.remove('work');
-      if(G.queued>=0){const q=G.queued;G.queued=-1;if(G.st[q].s==='wait')startTask(q)}
+      if(G.queued>=0){const q=G.queued;G.queued=-1;if(q===KID){if(G.kid&&G.kid.s==='wait')startKid()}else if(G.st[q].s==='wait')startTask(q)}
       paint()}
   }
   const circ=2*Math.PI*24;
@@ -278,7 +329,7 @@ function update(dt){
         const e=room(i);e.classList.add('miss');setTimeout(()=>e.classList.remove('miss'),450);popText(i,'😡 -'+CALM_LOSS,'#b91c1c');paint()}}
   });
   const m=$('mst');
-  m.textContent=G.busy>0&&G.work>=0?'ハギ: '+R[G.work].nm+'をやってる!':(G.st.some(x=>x.s==='run')?'ハギ: 手が空いた! 次をタップ':'ハギ: 待機中');
+  m.textContent=G.busy>0&&G.work===-2?'ハギ: 子どもと遊んでる!':G.busy>0&&G.work>=0?'ハギ: '+R[G.work].nm+'をやってる!':(G.st.some(x=>x.s==='run')?'ハギ: 手が空いた! 次をタップ':'ハギ: 待機中');
   $('tm').textContent=Math.max(0,Math.ceil(G.t));$('tm').classList.toggle('low',G.t<=5);
   if(G.calm<=0||G.t<=0)end(G.calm<=0)
 }
@@ -288,7 +339,7 @@ function end(woke){
   const b=best(),nb=G.score>b;if(nb){try{localStorage.setItem('hagi_best2',String(G.score))}catch(e){}}
   $('fin').textContent=G.score;$('rank').textContent=rankOf(G.score);
   $('endmsg').textContent=woke?'奥さんが起きちゃった…':nb?'🎉 自己ベスト更新!':'おつかれさま!';
-  $('endsub').textContent=(woke?'':'奥さんは ゆっくり休めました。\n')+'こなしたTODO '+G.done+'個 ／ 最大コンボ '+G.maxCombo+' ／ 並行 '+(G.para||0)+'回 ／ 自己ベスト '+Math.max(b,G.score)+'点';
+  $('endsub').textContent=(woke?'':'奥さんは ゆっくり休めました。\n')+'こなしたTODO '+G.done+'個 ／ 最大コンボ '+G.maxCombo+' ／ 並行 '+(G.para||0)+'回 ／ 子どもと遊んだ '+G.kids+'回 ／ 自己ベスト '+Math.max(b,G.score)+'点';
   setTimeout(()=>$('end').classList.remove('hide'),woke?700:500);
 }
 function begin(){audioOn();reset();state='play';$('start').classList.add('hide');$('end').classList.add('hide');tone(330,.08,'square',.07);setTimeout(()=>tone(660,.1,'square',.07),90)}
