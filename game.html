@@ -108,6 +108,7 @@ function audioOn(){try{if(!AC)AC=new (window.AudioContext||window.webkitAudioCon
 function tone(f,dur,type,vol,cut){if(!AC||muted)return;try{const t=AC.currentTime,o=AC.createOscillator(),g=AC.createGain(),fl=AC.createBiquadFilter();o.type=type||'sawtooth';o.frequency.value=f;fl.type='lowpass';fl.frequency.setValueAtTime(cut||900,t);fl.frequency.exponentialRampToValueAtTime(180,t+dur);g.gain.setValueAtTime(vol||.28,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);o.connect(fl);fl.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+dur+.02)}catch(e){}}
 function noteUp(i){const f=NOTES[Math.min(i,NOTES.length-1)];tone(f*2,.32,'sawtooth',.26,1400);tone(f*4,.12,'triangle',.07,2400)}
 function goldRiff(){if(!AC||muted)return;const n=[41.2,49,55,61.7,73.4,82.4,98,110,123.5,146.8,164.8,196,220];n.forEach((f,i)=>setTimeout(()=>{tone(f*2,.2,'sawtooth',.3,1800);tone(f*4,.08,'triangle',.08,3000)},i*115));setTimeout(()=>{[82.4,123.5,164.8,247].forEach(f=>tone(f,1.1,'sawtooth',.28,1600));tone(41.2,1.2,'square',.25,300)},n.length*115)}
+function chord(){[392,494,587,784].forEach(f=>tone(f,.4,'triangle',.1))}
 function thud(){tone(55,.25,'square',.3,300);tone(40,.35,'sawtooth',.25,200)}
 function blip(){tone(880,.1,'triangle',.12,3000)}
 function buzz(ms){try{if(navigator.vibrate)navigator.vibrate(ms)}catch(e){}}
@@ -193,7 +194,7 @@ document.addEventListener('pointerdown',()=>{if(state==='idle'){audioOn();openSt
 document.addEventListener('visibilitychange',()=>{if(!AC)return;try{document.hidden?AC.suspend():AC.resume()}catch(e){}});
 const GOLD_RATE=.14;
 const TMAX=30, HARD=40, GOLD_MAX=5, RUSH_MAX=70, DEPTH_MAX=1000000, RUSH_CHANCE=.08, RUSH_RATE=.9;
-const LIMIT=15, PXM=26;
+const LIMIT=15; let PXM=26;
 const ITEM_KINDS=[{k:'item_tank',w:3,m:'酸素ボンベ！ +12m'},{k:'item_string',w:4,m:'弦ゲット +4m'},{k:'item_star',w:2,m:'ステージダイブ！ 4秒ダブル'},{k:'item_clock',w:2,m:'時計 +2秒'},{k:'item_bad',w:3,m:'ハウリング… 浮かされた'}];
 const OBS=[{k:'ob_cable',w:78,h:39},{k:'ob_speaker',w:54,h:72},{k:'ob_amp',w:64,h:55}];
 let S=null, state='idle', last=0;
@@ -208,11 +209,43 @@ function spawn(){
   else{const o=OBS[Math.floor(Math.random()*OBS.length)];S.objs.push({type:'ob',k:o.k,x,d:S.depth+34,w:o.w,h:o.h})}
   S.nextSpawn=S.depth+34+((S.goldRate===RUSH_RATE&&(S.goldN||0)<RUSH_MAX)?(1.2+Math.random()*2):(4+Math.random()*7));
 }
+
+// ---- ゴールドラッシュ: 金のリボンを追いかけて駆け抜ける(何本続くかは毎回ひみつ)
+const ST_GAP=7;                       // 金の間隔(m)
+const GOLD_SCALE=[1,9/8,5/4,3/2,5/3];  // ペンタトニック(取るたびに音が駆け上がる)
+function streamNote(k){const f=330*GOLD_SCALE[k%5]*Math.pow(2,Math.floor(k/5)%4);tone(f,.1,'triangle',.13);tone(f*2,.07,'square',.04)}
+function startStream(){
+  S.objs=[];S.stream={total:70+Math.floor(Math.random()*111),spawned:0,got:0,next:S.depth+34,phase:Math.random()*6.28,age:0};
+  S.shake=.5;S.inv=Math.max(S.inv,3);goldRiff();buzz([40,30,40,30,120]);
+  popText('GOLD RUSH',W/2,H*.5,'#fde047');S.pop[S.pop.length-1].t=-.2;
+}
+function streamSpawn(){
+  const st=S.stream;
+  while(st.next<S.depth+36&&st.spawned<st.total){
+    const last=st.spawned===st.total-1,x=W/2+Math.sin(st.spawned*.2+st.phase)*W*.3*(1+Math.sin(st.spawned*.05)*.25);
+    S.objs.push({type:'item',it:{k:'item_gold'},k:'item_gold',x:Math.max(W*.1,Math.min(W*.9,x)),d:st.next,w:last?86:48,h:last?86:48,stream:true,last});
+    st.next+=ST_GAP;st.spawned++;
+  }
+}
+function finishStream(){
+  const st=S.stream;S.stream=null;S.streamDone=true;S.inv=Math.max(S.inv,1.2);
+  S.rush=Math.max(S.rush,.8);S.shake=.8;
+  const gt=addTime(3);
+  popText('完走！ GOLD x'+st.got+'  +'+gt+'秒',W/2,H*.45,'#fde047');S.pop[S.pop.length-1].t=-.2;
+  S.nextSpawn=S.depth+40;flashNow=true;buzz([60,40,60,40,200]);
+  [0,1,2,3,4].forEach(i=>setTimeout(()=>streamNote(15+i),i*90));
+}
+let flashNow=false;
 function addTime(sec){S.bonusN=(S.bonusN||0);const g=Math.round(sec*Math.max(.2,1-.2*S.bonusN)*10)/10;S.bonusN++;S.t=Math.min(TMAX,S.t+g);return g}
 function popText(txt,x,y,col){S.pop.push({txt,x,y,t:0,col:col||'#fde68a'})}
 function update(dt){
-  S.time+=dt;S.t-=dt;S.t=Math.min(S.t,HARD-S.time);if(S.t<=0){S.t=0;endGame();return}
+  PXM=S.stream?14:26;
+  S.time+=dt;
+  if(S.rushRun&&!S.stream&&!S.streamDone&&S.time>=S.streamAt)startStream();
+  if(!S.stream){S.t-=dt;S.t=Math.min(S.t,HARD-S.time)}   // ラッシュ中は時間が止まる
+  if(S.t<=0){S.t=0;endGame();return}
   let vt=5+S.time*.18;if(S.dbl>0)vt*=2;if(S.slow>0)vt*=.3;
+  if(S.stream){S.stream.age+=dt;vt=32+Math.min(S.stream.got,120)*.45;S.rush=1.7;S.rushT=1.7;S.rushAge=S.stream.age;S.inv=Math.max(S.inv,.5);S.shake=Math.max(S.shake,.12)}
   S.v+=(vt-S.v)*Math.min(1,dt*4);
   S.depth=Math.max(0,S.depth+S.v*dt);
   if(S.rush>0){S.rushAge=(S.rushAge||0)+dt;if(S.rushLeft>0){const d=Math.min(S.rushLeft,Math.min(400,90+S.rushLeft*.25)*dt);S.depth+=d;S.rushLeft-=d;S.rush=Math.max(S.rush,.4)}S.rush-=dt}
@@ -220,13 +253,14 @@ function update(dt){
   if(S.slow>0)S.slow-=dt;if(S.dbl>0)S.dbl-=dt;if(S.inv>0)S.inv-=dt;if(S.shake>0)S.shake-=dt;
   if(S.depth>=DEPTH_MAX){S.depth=DEPTH_MAX;endGame();return}
   const dd=S.depth-(S.lastDepth==null?S.depth:S.lastDepth);S.lastDepth=S.depth;
-  while(S.nextSpawn<S.depth+36&&S.objs.length<30)spawn();
+  if(S.stream){streamSpawn();if(S.stream.spawned>=S.stream.total&&!S.objs.some(o=>o.k==='item_gold'))finishStream()}
+  else while(S.nextSpawn<S.depth+36&&S.objs.length<30)spawn();
   const dx=S.dx, dy=H*.34;
   for(let i=S.objs.length-1;i>=0;i--){
     const o=S.objs[i];const y=dy+(o.d-S.depth)*PXM;o.y=y;
     if(y<-120){S.objs.splice(i,1);continue}
     if(o.hit)continue;
-    const hw=(o.w+60)/2*.7*(o.k==='item_gold'&&S.rush>0?1.6:1), hh=(o.h+60)/2*.7+(o.type==='item'?Math.max(0,dd)*PXM:0);
+    const hw=(o.w+60)/2*.7*(o.stream?2.1:(o.k==='item_gold'&&S.rush>0?1.6:1)), hh=(o.h+60)/2*.7+(o.type==='item'?Math.max(0,dd)*PXM:0);
     if(Math.abs(o.x-dx)<hw&&Math.abs(y-dy)<hh){
       if(o.type==='item'){o.hit=true;S.objs.splice(i,1);applyItem(o,dx,dy)}
       else if(S.inv<=0){S.inv=1;S.slow=.9;S.shake=.3;S.depth=Math.max(0,S.depth-4);S.combo=0;thud();buzz(80);popText('ガツン！ -4m',dx,dy-40,'#fca5a5')}
@@ -243,6 +277,10 @@ function applyItem(o,x,y){
   sparkle();noteUp(S.combo);S.combo++;S.maxCombo=Math.max(S.maxCombo,S.combo);buzz(15);
   const cb=S.combo>=3?Math.min(S.combo-2,5):0;S.depth+=cb;
   const cbTxt=S.combo>=2?'  COMBO x'+S.combo+(cb?' +'+cb+'m':''):'';
+  if(k==='item_gold'&&o.stream){const st=S.stream;if(st){st.got++;S.depth+=o.last?150:0;S.items++;streamNote(st.got);buzz(10);S.bump=.12;
+    for(let n=0;n<(o.last?50:6);n++){const a=Math.random()*6.28;S.spark.push({x,y,vx:Math.cos(a)*(60+Math.random()*200),vy:Math.sin(a)*(60+Math.random()*200),t:0})}
+    if(st.got%10===0){S.shake=.4;flashNow=true;popText('x'+st.got,x,y-50,'#fde047');chord()}
+    if(o.last){S.shake=1;flashNow=true;buzz([80,50,200])}}return}
   if(k==='item_gold'){const was=S.rush>0;S.rushLeft=(S.rushLeft||0)+100;S.rush=1.7;S.rushT=1.7;if(!was)S.rushAge=0;const gt=addTime(3);S.inv=Math.max(S.inv,1.9);S.shake=Math.max(S.shake,.6);S.slow=0;S.dbl=0;for(let n=0;n<60;n++){const a=Math.random()*6.28;S.spark.push({x,y,vx:Math.cos(a)*(80+Math.random()*260),vy:Math.sin(a)*(80+Math.random()*260),t:0})}buzz([60,40,60,40,200]);if(!was)goldRiff();else{tone(1200+Math.min(S.goldN||0,40)*20,.12,'triangle',.12)}popText('★ GOLD DIVE!! +100m ＆ +'+gt+'秒 ★',W/2,y-70,'#fde047');return}
   if(k==='item_tank'){S.depth+=12;popText('酸素ボンベ！ +12m'+cbTxt,x,y-40)}
   else if(k==='item_string'){S.depth+=4;popText('弦ゲット +4m'+cbTxt,x,y-40)}
@@ -307,7 +345,13 @@ function draw(){
     ctx.restore();
     if((S.rushAge||0)<.1){ctx.fillStyle='rgba(255,250,200,'+(1-(S.rushAge||0)/.1)*.55+')';ctx.fillRect(0,0,W,H)}
     ctx.save();ctx.textAlign='center';ctx.font='900 '+(34+Math.sin(S.time*30)*3)+'px sans-serif';ctx.lineWidth=5;ctx.strokeStyle='#7c2d12';ctx.fillStyle='#fde047';ctx.globalAlpha=Math.min(1,p*2);
-    ctx.strokeText('GOLD DIVE!!',W/2,H*.62);ctx.fillText('GOLD DIVE!!',W/2,H*.62);ctx.restore()}
+    if(!S.stream){ctx.strokeText('GOLD DIVE!!',W/2,H*.62);ctx.fillText('GOLD DIVE!!',W/2,H*.62)}ctx.restore()}
+  if(S.stream){const st=S.stream,sc=1+(S.bump||0)*2.5;S.bump=Math.max(0,(S.bump||0)-.016);
+    ctx.save();ctx.textAlign='center';ctx.translate(W/2,H*.62);ctx.scale(sc,sc);ctx.font='900 46px sans-serif';ctx.lineWidth=7;ctx.strokeStyle='#7c2d12';ctx.fillStyle='#fde047';
+    ctx.strokeText('GOLD x'+st.got,0,0);ctx.fillText('GOLD x'+st.got,0,0);ctx.restore();
+    if(st.age<2.4){ctx.save();ctx.textAlign='center';ctx.globalAlpha=Math.min(1,(2.4-st.age));ctx.font='900 18px sans-serif';ctx.fillStyle='#fff';ctx.fillText('どこまで続く……?',W/2,H*.7);ctx.restore()}}
+  if(flashNow){flashNow=false;S.flashA=.7}
+  if(S.flashA>0){ctx.fillStyle='rgba(255,250,200,'+S.flashA+')';ctx.fillRect(0,0,W,H);S.flashA=Math.max(0,S.flashA-.05)}
   ctx.restore();
 }
 function loop(ts){
@@ -328,7 +372,7 @@ async function ranking(el,mine){
 }
 function myName(){return ($('nm').value||'').trim().slice(0,12)}
 function bestLocal(){return Number(localStorage.getItem('bh_game_best')||0)}
-function beginRun(){reset();S.goldRate=Math.random()<RUSH_CHANCE?RUSH_RATE:GOLD_RATE;if(S.goldRate===RUSH_RATE){popText('✨ ゴールドベース・ラッシュ！ よく出るぞ ✨',W/2,H*.55,'#fde047');S.pop[0].t=-.8}state='play';openStop();bgmStop();bgmStart()}
+function beginRun(){reset();S.goldRate=GOLD_RATE;S.rushRun=Math.random()<RUSH_CHANCE;S.streamAt=2.2;if(S.rushRun){popText('ゴールドの気配…',W/2,H*.55,'#fde047');S.pop[0].t=-.8}state='play';openStop();bgmStop();bgmStart()}
 function startGame(){audioOn();
   const n=myName();if(!n){$('nm').focus();$('nm').style.borderColor='#f87171';return}
   try{localStorage.setItem('bh_game_name',n)}catch(e){}
