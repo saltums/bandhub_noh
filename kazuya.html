@@ -91,14 +91,14 @@ function ui(){
   if(S.msgT>0){ctx.save();ctx.globalAlpha=Math.min(1,S.msgT*2);txt(S.msg,W/2,110,26,'#fde047','center','#000');ctx.restore()}
   if(S.phase==='menu'){
     if(S.menu==='cmd'){win(176,484,200,46);txt('必殺技',276,507,20,'#fff','center');ctx.fillStyle='#fff';ctx.beginPath();ctx.moveTo(190,497);ctx.lineTo(200,507);ctx.lineTo(190,517);ctx.fill();
-      txt('タップして技をえらぶ',W/2,580,14,'#9ab','center')}
+      txt('タップして技をえらぶ',W/2,566,14,'#9ab','center');txt('奥義⑦ゲージ: ①は1/7 ②は1/6 … ⑥は1/2 たまる',W/2,590,12,'#9ab','center');ctx.fillStyle='#000';ctx.fillRect(100,604,190,10);ctx.fillStyle=S.u7?'#fde047':'#7dd3fc';ctx.fillRect(100,604,190*(S.u7?1:(S.gauge||0)),10)}
     else{ // 技リスト
       win(14,540,W-28,224);
       for(let i=0;i<7;i++){const col=i%2,row=Math.floor(i/2),x=30+col*176,y=566+row*52,lock=i===6&&S.u7<1,en=!lock;
         ctx.globalAlpha=en?1:.4;txt(TECH_NAME[i],x,y,24,'#fff');
         for(let k=0;k<TECH_LEN[i];k++){arrow(x+42+k*14,y,'U',0,'#000')}
         ctx.globalAlpha=1;
-        if(lock){txt('あと'+(UNLOCK-S.since)+'回',x+36,y,13,'#fff')}else{txt('+'+TECH_PTS[i],x+120,y,14,'#fde047','right');txt(TECH_LEN[i]+'手',x+36,y,13,'#cde')}}
+        if(lock){const g=S.gauge||0;txt('奥義ゲージ',x+34,y-10,11,'#fff');ctx.fillStyle='#000';ctx.fillRect(x+34,y+2,110,8);ctx.fillStyle='#fde047';ctx.fillRect(x+34,y+2,110*g,8)}else{txt('+'+TECH_PTS[i],x+120,y,14,'#fde047','right');txt(TECH_LEN[i]+'手',x+36,y,13,'#cde')}}
     }
   }else if(S.phase==='dir'||S.phase==='btn'){
     win(14,540,W-28,224);
@@ -121,12 +121,12 @@ function result(){ctx.fillStyle='rgba(0,0,0,.78)';ctx.fillRect(0,0,W,H);txt('お
   win(60,500,W-120,60);txt('もう一回',W/2,530,24,'#fff','center')}
 // ---------- ロジック ----------
 function startTech(i){S.tech=i;S.phase='dir';S.idx=0;S.seq=[];for(let k=0;k<TECH_LEN[i];k++){let d;do{d=DIRS[Math.floor(Math.random()*4)]}while(k&&d===S.seq[k-1]);S.seq.push(d)}
-  if(i===6){S.u7=0;S.since=0}sel()}
+  if(i===6){S.u7=0;S.gauge=0}sel()}
 function fail(msg){ng();S.shake=.25;say(msg||'しっぱい…');S.phase='menu';S.menu='cmd'}
 function say(m){S.msg=m;S.msgT=1.1}
 function success(){const i=S.tech,e=S.enemy,pts=TECH_PTS[i];S.swing=.001;S.flash=.15;hit(i>=4);addNotes(8+i*3,95,265);
   S.fx.push({k:'slash',x:95,y:265,t:0,life:.35});S.fx.push({k:'dmg',x:95,y:215,s:String(pts*100+Math.floor(Math.random()*90)),t:0,life:.9,sz:30+i*3});
-  S.score+=pts;S.kills++;S.bestTech=Math.max(S.bestTech,i);if(i<6){S.since++;if(S.since>=UNLOCK&&S.u7<1){S.u7=1;say(TECH_NAME[6]+' が使える！')}}
+  S.score+=pts;S.kills++;S.bestTech=Math.max(S.bestTech,i);if(i<6&&S.u7<1){S.gauge=(S.gauge||0)+1/(7-i);if(S.gauge>=.999){S.gauge=1;S.u7=1;say(TECH_NAME[6]+' が使える！')}}
   e.die=.001;S.shake=.3;S.phase='menu';S.menu='cmd';
   if(!S.msgT)say(['撃破！','決まった！','見事！'][Math.floor(Math.random()*3)]);S.pending=.55}
 let sx=0,sy=0,down=false;
