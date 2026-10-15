@@ -118,9 +118,9 @@ const RIFF=[103.83,207.65,185.00,138.59,155.56,246.94,233.08,246.94,138.59,155.5
 RIFF[8]=138.59;RIFF[9]=155.56;
 let bgm=null;
 // 深さに応じた10段階のアレンジ
-const BGM_LV=[0,25,60,110,170,250,350,480,650,900],BGM_TEMPO=[1,1,1,1,1,1,.95,.95,.92,.88];
+const BGM_LV=[0,25,60,110,170,250,350,480,650,900,1200,1600,2100,2800,3600],BGM_TEMPO=[1,1,1,1,1,1,.95,.95,.92,.88,.88,.86,.85,.83,.8];
 function bgmLevel(dp){let l=0;for(let k=0;k<BGM_LV.length;k++)if(dp>=BGM_LV[k])l=k;return l}
-function bgmLevelUp(lv){if(!bgm)return;const t=AC.currentTime;[0,1,2].forEach(k=>bgmNote(t+k*.07,660*[1,1.25,1.5][k]*(1+lv*.03),.22,'triangle',.08,bgm.out));if(bgm.lp)bgm.lp.frequency.value=1000+lv*170}
+function bgmLevelUp(lv){if(!bgm)return;const t=AC.currentTime;[0,1,2].forEach(k=>bgmNote(t+k*.07,660*[1,1.25,1.5][k]*(1+lv*.03),.22,'triangle',.08,bgm.out));if(bgm.lp)bgm.lp.frequency.value=1000+lv*170;if(lv>=10)[0,1,2,3,4].forEach(k=>bgmNote(t+k*.06,660*[1,1.25,1.5,2,2.5][k],.3,'triangle',.07,bgm.out))}
 function noiseBuf(){const n=AC.sampleRate*.3,bf=AC.createBuffer(1,n,AC.sampleRate),d=bf.getChannelData(0);for(let i=0;i<n;i++)d[i]=Math.random()*2-1;return bf}
 function bgmNote(t,f,dur,type,vol,dest){const o=AC.createOscillator(),g=AC.createGain();o.type=type;o.frequency.setValueAtTime(f,t);g.gain.setValueAtTime(0.0001,t);g.gain.linearRampToValueAtTime(vol,t+.006);g.gain.setValueAtTime(vol*.8,t+dur*.6);g.gain.linearRampToValueAtTime(0.0001,t+dur);o.connect(g);g.connect(dest);o.start(t);o.stop(t+dur+.02)}
 function bgmNoise(t,dur,vol,hp,dest){const s=AC.createBufferSource(),g=AC.createGain(),fl=AC.createBiquadFilter();s.buffer=(bgm||op).nb;fl.type='highpass';fl.frequency.value=hp;g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);s.connect(fl);fl.connect(g);g.connect(dest);s.start(t);s.stop(t+dur+.02)}
@@ -144,6 +144,11 @@ function bgmStep(t,i,rush){
   if(lv>=6)bgmNoise(t,sd*.3,.04,8000,d);                                    // L6 16分ハット
   if(lv>=7){const ar=[1,1.26,1.5,2][i%4];bgmNote(t+sd*.5,f*ar*2,sd*.6,'triangle',.05,d)}   // L7 アルペジオ
   if(lv>=8&&i===0)bgmSwish(t,sd*8,d);                                       // L8 ライザー
+  if(lv>=10&&i%8===0){[1,1.26,1.5].forEach(m=>{const o=AC.createOscillator(),g=AC.createGain();o.type='sine';o.frequency.value=f*m;g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(.05,t+sd*3);g.gain.linearRampToValueAtTime(.0001,t+sd*8);o.connect(g);g.connect(d);o.start(t);o.stop(t+sd*8.2)})}   // L10 コーラス風パッド
+  if(lv>=11){if(i%2===1)bgmKick(t,d);bgmNote(t+sd*.5,f/2,sd*.5,'square',.05,d)}                       // L11 倍速キック+裏ベース
+  if(lv>=12){bgmNote(t,f*1.26,sd*1.2,'triangle',.05,d);bgmNote(t,f*4,sd*.6,'square',.03,d);const ar2=[1,1.5,2,3][(i+1)%4];bgmNote(t+sd*.25,f*ar2*2,sd*.3,'triangle',.04,d)}   // L12 3度ハモリ+高音+16分アルペジオ
+  if(lv>=13){if(Math.random()<.45)bgmNote(t+sd*Math.random(),f*8,sd*.7,'sine',.04,d);if(i%8===6)bgmSwish(t,sd*3,d)}   // L13 ベル+スイープ
+  if(lv>=14){if(i%4===0)[2,3,4].forEach(m=>bgmNote(t,f*m,sd*3,'sine',.045,d));if(i%8===0)bgmNoise(t,sd*5,.22,2500,d)}   // L14 光のコード+クラッシュ
   if(lv>=9){bgmNote(t,f/4,sd*2,'sine',.14,d);if(i===0)bgmNoise(t,sd*6,.2,3000,d)}   // L9 低音の重ね+クラッシュ
 }
 function bgmStart(){
@@ -159,7 +164,7 @@ function bgmStart(){
     if(!bgm||state!=='play')return;
     const rush=S&&S.rush>0,dp=S?S.depth:0;
     const nl=bgmLevel(dp);if(nl>bgm.lv){bgm.lv=nl;bgmLevelUp(nl)}bgm.step=.19/(1+Math.min(dp,200)/300)*(rush?.75:1)*BGM_TEMPO[bgm.lv];
-    while(bgm.next<AC.currentTime+.15){bgmStep(bgm.next,bgm.i,rush);bgm.i=(bgm.i+1)%RIFF.length;if(bgm.i===0){bgm.loop++;bgm.tr=bgm.lv>=9&&bgm.loop%4===3?1.4983:(bgm.lv>=7&&bgm.loop%2===1?1.3348:1)}bgm.next+=bgm.step}
+    while(bgm.next<AC.currentTime+.15){bgmStep(bgm.next,bgm.i,rush);bgm.i=(bgm.i+1)%RIFF.length;if(bgm.i===0){bgm.loop++;bgm.tr=bgm.lv>=14?[1,1.1225,1.2599,1.3348][bgm.loop%4]:(bgm.lv>=9&&bgm.loop%4===3?1.4983:(bgm.lv>=7&&bgm.loop%2===1?1.3348:1))}bgm.next+=bgm.step}
   },25);
 }
 function bgmStop(){if(!bgm)return;const o=bgm;bgm=null;clearInterval(o.timer);try{o.out.gain.setValueAtTime(o.out.gain.value,AC.currentTime);o.out.gain.linearRampToValueAtTime(0,AC.currentTime+.25);setTimeout(()=>{try{o.out.disconnect();o.lfo.stop()}catch(e){}},1500)}catch(e){}}
