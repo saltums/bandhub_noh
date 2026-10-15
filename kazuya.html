@@ -27,7 +27,7 @@ function hit(big){noise(.25,.3);tone(220,.3,'sawtooth',.12,50);if(big)[0,1,2,3].
 function hashS(s){let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))>>>0;return h}
 function nextEnemy(){let n;do{n=BANDS[Math.floor(Math.random()*BANDS.length)]}while(S.enemy&&n===S.enemy.name&&BANDS.length>1);
   S.enemy={name:n,h:hashS(n),hp:1,a:0,die:0,shape:hashS(n)%3};}
-function reset(){S={csel:1,guard:false,atb:0,atbDur:1,first:Math.random()<.25,intro:.9,top:null,topT:0,sel:0,last:-1,run:0,ult:0,t:LIMIT,score:0,kills:0,streak:0,since:0,u7:0,menu:'cmd',phase:'menu',tech:-1,seq:[],idx:0,btnT:0,enemy:null,fx:[],shake:0,flash:0,msg:'',msgT:0,swing:0,bestTech:-1,sel:0,time:0};nextEnemy();if(S.first){S.atb=1;setTop('せんせいこうげき！')}
+function reset(){S={dieAt:0,eff:null,csel:1,guard:false,atb:0,atbDur:1,first:Math.random()<.25,intro:.9,top:null,topT:0,sel:0,last:-1,run:0,ult:0,t:LIMIT,score:0,kills:0,streak:0,since:0,u7:0,menu:'cmd',phase:'menu',tech:-1,seq:[],idx:0,btnT:0,enemy:null,fx:[],shake:0,flash:0,msg:'',msgT:0,swing:0,bestTech:-1,sel:0,time:0};nextEnemy();if(S.first){S.atb=1;setTop('せんせいこうげき！')}
   tone(1200,.5,'sawtooth',.06,120);noise(.5,.12)}
 function setTop(t){S.top=t;S.topT=1.4}
 // ---------- 描画 ----------
@@ -44,7 +44,7 @@ function bg(){const g=ctx.createLinearGradient(0,0,0,470);g.addColorStop(0,'#0a0
   // スポットライト
   ctx.save();ctx.globalCompositeOperation='lighter';[[70,'#7a5cff'],[320,'#ff5c9a']].forEach(([x,c])=>{const g=ctx.createLinearGradient(x,0,x,360);g.addColorStop(0,c+'66');g.addColorStop(1,c+'00');ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(x-6,0);ctx.lineTo(x+6,0);ctx.lineTo(x+60,360);ctx.lineTo(x-60,360);ctx.fill()});ctx.restore()}
 function enemy(e){if(e.die>0){const q=e.die/.5,N=14;for(let k=0;k<N;k++){const th=((k*37+(e.h%13))%N)/N;if(th+.001<q)continue;ctx.save();ctx.beginPath();ctx.rect(0,196+k*10,W,10);ctx.clip();const dx=th<q+.25?(q-th)*0:0;ctx.translate(dx,0);enemyBody(e);ctx.restore()}return}enemyBody(e)}
-function enemyBody(e){const sh=S.shake>0?(Math.random()-.5)*10:0,x=95+sh,y=265;const al=1;if(al<=0)return;
+function enemyBody(e){const sh=S.shake>0?(Math.random()-.5)*10:0,x=95+sh,y=265+effEnemyOff();const al=1;if(al<=0)return;
   ctx.save();ctx.globalAlpha=al;ctx.translate(x,y);const hue=e.h%360,sc=1+Math.sin(S.time*3)*.02;ctx.scale(sc,sc);
   const body='hsl('+hue+',55%,48%)',dark='hsl('+hue+',55%,28%)',lt='hsl('+hue+',60%,68%)';
   ctx.fillStyle='rgba(0,0,0,.35)';ctx.beginPath();ctx.ellipse(0,62,62,12,0,0,6.3);ctx.fill();
@@ -62,6 +62,43 @@ function enemyBody(e){const sh=S.shake>0?(Math.random()-.5)*10:0,x=95+sh,y=265;c
     ctx.fillStyle=body;ctx.beginPath();ctx.arc(0,-24,38,Math.PI,0);ctx.lineTo(40,42);ctx.lineTo(20,32);ctx.lineTo(0,44);ctx.lineTo(-20,32);ctx.lineTo(-40,42);ctx.closePath();ctx.fill();
     ctx.fillStyle='#fff';ctx.beginPath();ctx.ellipse(-15,-20,10,13,0,0,6.3);ctx.ellipse(15,-20,10,13,0,0,6.3);ctx.fill();ctx.fillStyle='#111';ctx.beginPath();ctx.arc(-13,-17,5,0,6.3);ctx.arc(17,-17,5,0,6.3);ctx.fill();
     ctx.fillStyle='#111';ctx.beginPath();ctx.ellipse(0,12,9,12,0,0,6.3);ctx.fill()}
+  ctx.restore()}
+// ---- FF6風 技エフェクト(ドット絵レイヤー上に描く) ----
+const EFF_L=[.9,1.0,.8,1.15,1.0,1.25],EX=95,EY=265;
+const hr=(k)=>{const v=Math.sin(k*127.1+311.7)*43758.5453;return v-Math.floor(v)};
+function star(x,y,r,c1,c2){ctx.fillStyle=c1;ctx.beginPath();for(let k=0;k<16;k++){const a=k*Math.PI/8,rr_=k%2?r*.42:r;ctx.lineTo(x+Math.cos(a)*rr_,y+Math.sin(a)*rr_)}ctx.closePath();ctx.fill();ctx.fillStyle=c2;ctx.beginPath();ctx.arc(x,y,r*.35,0,6.3);ctx.fill()}
+function effBg(){const f=S.eff;if(!f||f.t<0)return;const t=f.t,i=f.i;let c=null,a=0;
+  if(i===1){c='80,160,255';a=.28*Math.sin(Math.min(1,t/.6)*Math.PI)}
+  if(i===2&&t>.5&&t<.7)c='255,255,255',a=.5*(1-(t-.5)/.2);
+  if(i===3){c='255,90,20';a=.34*Math.sin(Math.min(1,t/1.1)*Math.PI)}
+  if(i===4){c='120,230,255';a=.22*Math.sin(Math.min(1,t/1)*Math.PI)}
+  if(i===5){c='hsl';a=.3*Math.sin(Math.min(1,t/1.2)*Math.PI)}
+  if(a>0){ctx.save();ctx.fillStyle=c==='hsl'?'hsla('+(t*900%360)+',90%,55%,'+a+')':'rgba('+c+','+a+')';ctx.fillRect(0,0,W,470);ctx.restore()}}
+function effEnemyOff(){const f=S.eff;if(!f||f.t<0||f.i!==2)return 0;const t=f.t;if(t<.4)return -90*Math.sin(t/.4*Math.PI/2);if(t<.55)return -90+90*Math.pow((t-.4)/.15,2);return 0}
+function effDraw(){const f=S.eff;if(!f||f.t<0)return;const t=f.t,i=f.i,L=EFF_L[i];ctx.save();
+  if(i===0){ // ばくれつけん: 拳のラッシュ
+    for(let k=0;k<14;k++){const tk=t-.08-k*.045;if(tk<0||tk>.14)continue;const q=tk/.14,x=EX-36+hr(k)*72,y=EY-46+hr(k+40)*92;
+      star(x,y,20*(1-q*.5),k%2?'#fff':'#fde047','#f97316');ctx.fillStyle='#fff';ctx.fillRect(x+30-q*30+10,y-4,18,8)}}
+  else if(i===1){ // オーラキャノン: 気弾→ビーム→爆発
+    const ox=232,oy=262;if(t<.4){const r=8+t*60;const g=ctx.createRadialGradient(ox,oy,2,ox,oy,r);g.addColorStop(0,'#fff');g.addColorStop(.5,'#6cf');g.addColorStop(1,'rgba(60,120,255,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(ox,oy,r,0,6.3);ctx.fill()}
+    else if(t<.7){const q=(t-.4)/.3,x=ox-(ox-EX)*Math.min(1,q*1.4);ctx.fillStyle='rgba(120,200,255,.55)';ctx.fillRect(x,oy-14*(1-q*.4),ox-x,28*(1-q*.4));ctx.fillStyle='#fff';ctx.fillRect(x,oy-5,ox-x,10);star(x,oy,26,'#9df','#fff')}
+    else{const q=(t-.7)/.3;for(let k=0;k<3;k++){ctx.strokeStyle=k?'#9df':'#fff';ctx.lineWidth=6*(1-q);ctx.beginPath();ctx.arc(EX,EY,(20+q*80)*(1+k*.3),0,6.3);ctx.stroke()}star(EX,EY,50*(1-q),'#9df','#fff')}}
+  else if(i===2){ // メテオストライク: 投げ上げ→叩きつけ
+    if(t>=.55&&t<.9){const q=(t-.55)/.35;ctx.strokeStyle='#fff';ctx.lineWidth=6*(1-q);ctx.beginPath();ctx.ellipse(EX,EY+58,30+q*110,8+q*22,0,0,6.3);ctx.stroke();
+      for(let k=0;k<12;k++){const a=k*.52,d=q*90;ctx.fillStyle='#c9b79a';ctx.fillRect(EX+Math.cos(a)*d-3,EY+58+Math.sin(a)*d*.35-q*40*Math.abs(Math.sin(k))-3,7,7)}}
+    if(t>=.38&&t<.58){ctx.fillStyle='rgba(255,255,255,.6)';ctx.fillRect(EX-50,EY-30+effEnemyOff(),100,6)}}
+  else if(i===3){ // ほうおうのまい: 炎の鳥
+    for(let k=0;k<70;k++){const ph=(t*1.6+hr(k))%1,x=EX-60+hr(k+9)*120+Math.sin(ph*9+k)*16,y=EY+70-ph*190,s_=10*(1-ph)+3;
+      ctx.fillStyle=['#fff3a0','#ffb02e','#ff5a1f','#c1121f'][Math.floor(ph*4)];ctx.fillRect(x,y,s_,s_)}
+    const sp=Math.sin(Math.min(1,t/1.1)*Math.PI);ctx.strokeStyle='#ffb02e';ctx.lineWidth=10;for(const sg of[-1,1]){ctx.beginPath();ctx.moveTo(EX,EY-10);ctx.quadraticCurveTo(EX+sg*70*sp,EY-70-30*sp,EX+sg*110*sp,EY-20-40*sp);ctx.stroke()}
+    ctx.fillStyle='#ffe066';ctx.beginPath();ctx.arc(EX,EY-30-t*20,16*sp,0,6.3);ctx.fill()}
+  else if(i===4){ // しんくうは: 風の刃
+    for(let k=0;k<6;k++){const tk=t-.1-k*.1;if(tk<0||tk>.28)continue;const q=tk/.28,ang=-.9+k*.4,cx=EX-70+q*140,cy=EY-60+k*24;ctx.strokeStyle=k%2?'#fff':'#7df';ctx.lineWidth=8*(1-q)+2;ctx.beginPath();ctx.arc(cx-30,cy,46,ang-.9,ang+.9);ctx.stroke()}
+    ctx.strokeStyle='rgba(255,255,255,.7)';ctx.lineWidth=2;for(let k=0;k<14;k++){const y=EY-80+hr(k)*160,x=((t*500+hr(k+5)*300)%260)-30;ctx.beginPath();ctx.moveTo(EX+120-x,y);ctx.lineTo(EX+120-x-40,y);ctx.stroke()}}
+  else{ // ⑥ 夢幻闘舞: 全方位の乱舞
+    for(let k=0;k<18;k++){const tk=t-.1-k*.05,a=hr(k)*6.3;if(tk<0||tk>.16)continue;const q=tk/.16;ctx.strokeStyle='hsl('+(k*50%360)+',90%,70%)';ctx.lineWidth=7*(1-q)+1;ctx.beginPath();ctx.moveTo(EX+Math.cos(a)*70,EY+Math.sin(a)*70);ctx.lineTo(EX-Math.cos(a)*70,EY-Math.sin(a)*70);ctx.stroke()}
+    for(let k=0;k<3;k++){const tk=t-.5-k*.22;if(tk<0||tk>.3)continue;const q=tk/.3;ctx.strokeStyle='hsl('+(k*120+t*400)%360+',90%,70%)';ctx.lineWidth=5*(1-q);ctx.beginPath();ctx.arc(EX,EY,10+q*110,0,6.3);ctx.stroke()}
+    if(t>.9)star(EX,EY,50*(1-(t-.9)/.35),'#fff','#fde047')}
   ctx.restore()}
 // ---- 技ごとのダンス ----  p:0..1  戻り値 {x,y,rot,sx,arm}
 const DANCE_DUR=[.55,.7,.85,1,1.15,1.3,1.7];
@@ -91,7 +128,7 @@ function kazuya(pose,alpha){pose=pose||{x:0,y:0,rot:0,sx:1,arm:null};const x=300
   ctx.save();ctx.translate(-14,4+bob);ctx.rotate(ang);ctx.fillStyle='#d8d8e0';ctx.fillRect(-4,-4,34,9);ctx.fillStyle='#e8b890';ctx.fillRect(30,-4,8,9);ctx.fillStyle='#fff';ctx.fillRect(38,-1.5,46,3);ctx.restore();
   ctx.restore()}
 function fxDraw(dt){S.fx=S.fx.filter(f=>(f.t+=dt)<f.life);S.fx.forEach(f=>{const p=f.t/f.life;ctx.save();
-  if(f.k==='dmg'){ctx.globalAlpha=1-p*p;const sz=f.sz||34,ch=[...f.s],w=sz*.62;ch.forEach((c,idx)=>{const tt=f.t*8-idx*.35,off=tt>0&&tt<1?-Math.abs(Math.sin(tt*Math.PI))*18:0;txt(c,f.x+(idx-(ch.length-1)/2)*w,f.y-Math.min(1,p*2)*14+off,sz,'#fff','center','#a22')})}
+  if(f.k==='dmg'){if(f.t<0){ctx.restore();return}ctx.globalAlpha=1-p*p;const sz=f.sz||34,ch=[...f.s],w=sz*.62;ch.forEach((c,idx)=>{const tt=f.t*8-idx*.35,off=tt>0&&tt<1?-Math.abs(Math.sin(tt*Math.PI))*18:0;txt(c,f.x+(idx-(ch.length-1)/2)*w,f.y-Math.min(1,p*2)*14+off,sz,'#fff','center','#a22')})}
   else if(f.k==='slash'){ctx.globalAlpha=1-p;ctx.strokeStyle='#fff';ctx.lineWidth=8*(1-p)+2;ctx.beginPath();ctx.moveTo(f.x-60+p*30,f.y-60);ctx.lineTo(f.x+60-p*30,f.y+60);ctx.stroke();ctx.strokeStyle='#8cf';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(f.x+60,f.y-60);ctx.lineTo(f.x-60,f.y+60);ctx.stroke()}
   else if(f.k==='ring'){if(f.t<0){ctx.restore();return}ctx.globalAlpha=1-p;ctx.strokeStyle=f.c;ctx.lineWidth=6*(1-p)+1;ctx.beginPath();ctx.ellipse(f.x,f.y,f.r*p+8,(f.r*p+8)*.32,0,0,6.3);ctx.stroke()}
   else if(f.k==='conf'){ctx.globalAlpha=1-p*p;ctx.fillStyle=f.c;ctx.translate(f.x+f.vx*f.t,f.y+f.vy*f.t+300*f.t*f.t);ctx.rotate(f.t*9);ctx.fillRect(-4,-2,8,4)}
@@ -184,8 +221,14 @@ function ultra(){S.ult=1.7;S.ultMax=1.7;S.pk=true;
   [1200,()=>{noise(.7,.4);S.flash=.4;S.shake=.8;addNotes(60,95,265);[0,1,2,3,4,5].forEach(k=>setTimeout(()=>tone(392*[1,1.25,1.5,2,2.5,3][k],.35,'square',.08),k*60));S.fx.push({k:'dmg',x:95,y:200,s:'99999',t:0,life:1.2,sz:60})}]];
   ev.forEach(([ms,f])=>setTimeout(()=>{if(S&&S.ult>0)f()},ms))}
 function success(){const i=S.tech,e=S.enemy,pts=TECH_PTS[i];S.swing=.001;S.flash=.15;
-  if(i===6){ultra()}else{hit(i>=4)}
+  if(i===6){ultra()}
   if(i<6){if(S.last===i)S.run++;else S.run=1;S.last=i;if(S.run>=3){S.run=0;triple()}}else{S.last=-1;S.run=0}
+  if(i<6){S.eff={i,t:-.15,hit2:false};const snd=[()=>{for(let k=0;k<14;k++)setTimeout(()=>{noise(.07,.18);tone(180+Math.random()*120,.05,'square',.05)},300+k*45)},
+      ()=>{setTimeout(()=>tone(300,.4,'sine',.1,900),150);setTimeout(()=>{noise(.35,.3);tone(120,.3,'sawtooth',.1,50)},700)},
+      ()=>{setTimeout(()=>tone(200,.35,'triangle',.1,600),150);setTimeout(()=>{noise(.5,.4);tone(70,.4,'sawtooth',.14,30)},550)},
+      ()=>{for(let k=0;k<9;k++)setTimeout(()=>noise(.12,.12),150+k*100);setTimeout(()=>tone(220,.8,'sawtooth',.07,440),200)},
+      ()=>{for(let k=0;k<6;k++)setTimeout(()=>{tone(900-k*60,.12,'sawtooth',.06,300);noise(.08,.1)},200+k*100)},
+      ()=>{for(let k=0;k<18;k++)setTimeout(()=>tone(500+(k%6)*140,.07,'square',.05),120+k*50);setTimeout(()=>{noise(.5,.3)},1000)}][i];snd()}
   S.dance={i,t:0};S.atb=0;S.atbDur=.4+.13*i;setTop(i===6?'奥義  '+TECH_NAME[6]:TECH_NAME[i]);
   {const lv=i,cols=['#fde047','#7dd3fc','#f9a8d4','#86efac','#fdba74','#c4b5fd','#fff'];
    for(let k=0;k<Math.min(5,1+Math.ceil(lv*.8));k++)S.fx.push({k:'ring',x:300,y:320,t:-k*.09,life:.6+lv*.04,c:cols[(lv+k)%7],r:60+lv*22});
@@ -193,9 +236,9 @@ function success(){const i=S.tech,e=S.enemy,pts=TECH_PTS[i];S.swing=.001;S.flash
    if(lv>=3)S.fx.push({k:'dmg',x:300,y:190,s:['','','','いいぞ！','圧巻！','完璧！！'][lv],t:0,life:.9,sz:26+lv*2});
    if(lv>=4)S.flash=Math.max(S.flash,.12+lv*.02);}
   addNotes(8+i*3,95,265);
-  S.fx.push({k:'slash',x:95,y:265,t:0,life:.35});S.fx.push({k:'dmg',x:95,y:215,s:String(pts*100+Math.floor(Math.random()*90)),t:0,life:.9,sz:30+i*3});
+  S.fx.push({k:'slash',x:95,y:265,t:0,life:.35});S.fx.push({k:'dmg',x:95,y:215,s:String(pts*100+Math.floor(Math.random()*90)),t:i<6?-EFF_L[i]*.5:0,life:.9,sz:30+i*3});
   S.score+=pts;S.kills++;S.bestTech=Math.max(S.bestTech,i);if(i<6&&S.u7<1){S.gauge=(S.gauge||0)+1/(7-i);if(S.gauge>=.999){S.gauge=1;S.u7=1;say(TECH_NAME[6]+' が使える！')}}
-  if(i===6){S.pk=true}else e.die=.001;S.shake=.3;S.phase='menu';S.menu='cmd';
+  if(i===6){S.pk=true}else{S.dieAt=EFF_L[i]*.92}S.shake=.3;S.phase='menu';S.menu='cmd';
   if(!S.msgT)say(['撃破！','決まった！','見事！'][Math.floor(Math.random()*3)]);S.pending=.55}
 let sx=0,sy=0,down=false;
 function pos(ev){const r=cv.getBoundingClientRect();return[(ev.clientX-r.left)/r.width*W,(ev.clientY-r.top)/r.height*H]}
@@ -209,7 +252,7 @@ addEventListener('pointerup',()=>{down=false});
 function tap(x,y){
   if(state==='title'){if(y>500&&y<600){reset();state='play'}return}
   if(state==='over'){if(y>490&&y<570){reset();state='play'}return}
-  if(S.enemy.die>0||S.ult>0)return;
+  if(S.enemy.die>0||S.ult>0||S.dieAt>0)return;
   if(S.phase==='menu'){
     if(S.menu==='cmd'){if(y>548&&y<700){if(S.atb<1){ng();return}S.menu='list';sel()}}
     else{for(let i=0;i<7;i++){const col=i%2,row=Math.floor(i/2),bx=14+col*182,by=542+row*52;if(x>bx&&x<bx+182&&y>by&&y<by+52){if(i===6&&S.u7<1){ng();return}S.sel=i;startTech(i);return}}
@@ -225,12 +268,15 @@ function loop(ts){const dt=Math.min(.05,(ts-last)/1000||0);last=ts;ctx.clearRect
       if(S.phase==='btn'){S.btnT-=dt;if(S.btnT<=0)fail('ボタンが遅い！')}}
     if(S.ult>0){S.ult-=dt;if(S.ult<=0&&S.pk){S.pk=false;S.enemy.die=.001}}
     if(S.atb<1&&state==='play'&&!(S.ult>0))S.atb=Math.min(1,S.atb+dt/S.atbDur);if(S.topT>0)S.topT-=dt;if(S.intro>0)S.intro-=dt;
+    if(S.eff){S.eff.t+=dt;if(S.eff.i===2&&!S.eff.hit2&&S.eff.t>=.55){S.eff.hit2=true;S.shake=.45;noise(.3,.35)}if(S.eff.t>EFF_L[S.eff.i])S.eff=null}
+    if(S.dieAt>0){S.dieAt-=dt;if(S.dieAt<=0){S.dieAt=0;S.enemy.die=.001}}
     if(S.msgT>0)S.msgT-=dt;if(S.shake>0)S.shake-=dt;if(S.swing>0){S.swing+=dt*2.2;if(S.swing>=1)S.swing=0}
     if(S.enemy.die>0){S.enemy.die+=dt;if(S.enemy.die>.5&&state==='play'){nextEnemy()}}
-    pix(()=>{ctx.save();if(S.shake>0)ctx.translate((Math.random()-.5)*5,(Math.random()-.5)*5);bg();enemy(S.enemy);
+    pix(()=>{ctx.save();if(S.shake>0)ctx.translate((Math.random()-.5)*5,(Math.random()-.5)*5);bg();effBg();enemy(S.enemy);
       if(S.dance){const d=S.dance;d.t+=dt;const p=d.t/DANCE_DUR[d.i];if(p>=1)S.dance=null;else{
         const gh=Math.max(0,d.i-1);for(let g=gh;g>=1;g--){kazuya(danceAt(d.i,p-g*.05),.22)}kazuya(danceAt(d.i,p))}}
       if(!S.dance)kazuya();
+      effDraw();
       ctx.restore()});
     ctx.save();if(S.shake>0)ctx.translate((Math.random()-.5)*5,(Math.random()-.5)*5);fxDraw(dt);ctx.restore();
     if(S.flash>0){ctx.fillStyle='rgba(255,255,255,'+S.flash*4+')';ctx.fillRect(0,0,W,470);S.flash-=dt}
