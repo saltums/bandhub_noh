@@ -213,7 +213,7 @@ document.addEventListener('visibilitychange',()=>{if(!AC)return;try{document.hid
 const GOLD_RATE=.14;
 const TMAX=30, HARD=40, GOLD_MAX=5, RUSH_MAX=70, DEPTH_MAX=1000000, RUSH_CHANCE=.08, RUSH_RATE=.9;
 const LIMIT=20; let PXM=26;
-const ITEM_KINDS=[{k:'item_tank',w:3,m:'酸素ボンベ！ +12m'},{k:'item_string',w:4,m:'弦ゲット +4m'},{k:'item_star',w:2,m:'ステージダイブ！ 4秒ダブル'},{k:'item_clock',w:2,m:'時計 +2秒'},{k:'item_bad',w:3,m:'ハウリング… 浮かされた'}];
+const ITEM_KINDS=[{k:'item_tank',w:3,m:'酸素ボンベ！ +12m'},{k:'item_string',w:4,m:'弦ゲット +4m'},{k:'item_star',w:2,m:'ステージダイブ！ 4秒ダブル'},{k:'item_clock',w:2,m:'時計 +5秒'},{k:'item_bad',w:3,m:'ハウリング… 浮かされた'}];
 const OBS=[{k:'ob_cable',w:78,h:39},{k:'ob_speaker',w:54,h:72},{k:'ob_amp',w:64,h:55}];
 let S=null, state='idle', last=0;
 function reset(){S={t:LIMIT,depth:0,v:0,time:0,objs:[],nextSpawn:6,bubbles:[],dbl:0,inv:0,slow:0,pop:[],shake:0,items:0,combo:0,maxCombo:0,near:0,spark:[],tx:W/2,dx:W/2};
@@ -316,7 +316,7 @@ function applyItem(o,x,y){
   if(k==='item_tank'){S.depth+=12;popText('酸素ボンベ！ +12m'+cbTxt,x,y-40)}
   else if(k==='item_string'){S.depth+=4;popText('弦ゲット +4m'+cbTxt,x,y-40)}
   else if(k==='item_star'){S.dbl=4;popText('ステージダイブ！ 4秒ダブル'+cbTxt,x,y-40,'#f9a8d4')}
-  else if(k==='item_clock'){const ct=addTime(2);popText('時計 +'+ct+'秒'+cbTxt,x,y-40,'#a7f3d0')}
+  else if(k==='item_clock'){S.t=Math.min(TMAX,S.t+5);const ct=5;popText('時計 +'+ct+'秒'+cbTxt,x,y-40,'#a7f3d0')}
 }
 function bgColors(d){
   const stops=[[0,[56,189,248],[14,116,144]],[40,[14,116,144],[12,74,110]],[90,[30,27,75],[49,22,110]],[150,[76,29,149],[127,29,29]]];
@@ -464,7 +464,7 @@ $('nm').addEventListener('keydown',e=>{if(e.key==='Enter')startGame()});
     ['item_tank','good','酸素ボンベ','+12m 一気に潜る'],
     ['item_string','good','ベースの弦','+4m'],
     ['item_star','good','ステージダイブ','4秒間、2倍の速さ'],
-    ['item_clock','good','時計','残り時間 +2秒(取るほど増え幅は減る/最大30秒)'],
+    ['item_clock','good','時計','残り時間 +5秒(最大30秒)'],
     ['h','⚠ 赤い枠 = よける'],
     ['item_bad','bad','ハウリング(赤い×)','取ると -6m・減速'],
     ['ob_amp','bad','アンプ・スピーカー・ケーブル','ぶつかると -4m・減速'],
