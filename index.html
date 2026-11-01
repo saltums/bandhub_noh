@@ -4,7 +4,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Band Manager</title>
+  <title>Band Hub | noh</title>
+  <meta name="description" content="nohのライブ・セトリ・スタジオ予定">
+  <meta property="og:title" content="Band Hub | noh">
+  <meta property="og:description" content="nohのライブ・セトリ・スタジオ予定">
+  <meta property="og:type" content="website">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -13,6 +17,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
   <style>
+    [v-cloak] { display: none; }
     body { background-color: #f8fafc; color: #334155; -webkit-tap-highlight-color: transparent; }
     .fade-enter-active, .fade-leave-active { transition: opacity 0.2s; }
     .fade-enter-from, .fade-leave-to { opacity: 0; }
@@ -26,7 +31,7 @@
 </head>
 
 <body class="min-h-screen relative overflow-x-hidden">
-  <div id="app" class="max-w-md mx-auto h-full bg-white min-h-screen shadow-2xl relative pb-20">
+  <div id="app" v-cloak class="max-w-md mx-auto h-full bg-white min-h-screen shadow-2xl relative pb-20">
 
     <header v-show="!showPlotEditor"
       class="bg-indigo-600 text-white p-4 fixed top-0 w-full max-w-md z-50 shadow flex justify-between items-center">
@@ -1589,7 +1594,13 @@
           alert('データを再読み込みしました。');
         };
 
-        onMounted(loadData);
+        onMounted(async () => {
+          await loadData();
+          // 共有リンク(?live=ID)から開いたら、そのライブを直接表示
+          const id = new URLSearchParams(location.search).get('live');
+          const l = id && db.value.lives.find(x => x.ID === id);
+          if (l) goToLiveDetail(l);
+        });
 
         const menuOrder = ref([
           { id: 'songs', title: '曲管理', subtitle: 'レパートリーと演奏回数の管理', icon: 'fas fa-music', colorClass: 'from-blue-500 to-indigo-600' },
@@ -2304,6 +2315,32 @@
             document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); alert('コピーしました');
           }
         };
+        // LINE共有用: メッセージだけで当日の動きが分かる文面
+        const liveShareText = (l) => {
+          const d = l.日にち ? new Date(l.日にち + 'T00:00:00') : null;
+          const day = d && !isNaN(d) ? `${d.getMonth() + 1}/${d.getDate()}(${'日月火水木金土'[d.getDay()]})` : '日付未定';
+          const L = [];
+          L.push(`🎸 ${day} ${l.ライブ場所 || '会場未定'}${l.都道府県 ? `(${l.都道府県})` : ''}${l.ステータス && l.ステータス !== '参加' ? ` 【${l.ステータス}】` : ''}`);
+          if (l.ライブタイトル) L.push(l.ライブタイトル);
+          const t = [];
+          if (l.入り時間) t.push(`🚃 入り ${l.入り時間}`);
+          if (l.リハ時間) t.push(`🔧 リハ ${l.リハ時間}`);
+          if (l.出番時間) t.push(`🔥 出番 ${l.出番時間}${l['制限時間(分)'] ? `(${l['制限時間(分)']}分)` : ''}`);
+          else if (l['制限時間(分)']) t.push(`🔥 持ち時間 ${l['制限時間(分)']}分`);
+          if (l.開場 || l.開演) t.push(`🚪 OPEN ${l.開場 || '?'} / START ${l.開演 || '?'}`);
+          if (l.料金) t.push(`🎫 ${l.料金}`);
+          if (t.length) L.push('', ...t);
+          const acts = actsOf(l);
+          if (acts.length) L.push('', `🤝 対バン: ${acts.join(' / ')}`);
+          const mem = (l.参加メンバー || []).map(id => getMemberName(id, true)).filter(Boolean);
+          if (mem.length) L.push(`👥 ${mem.join('・')}`);
+          const sl = db.value.setlists.filter(s => s.ライブID === l.ID).sort((a, b) => Number(a.順番) - Number(b.順番));
+          if (sl.length) {
+            let n = 0;
+            L.push('', '🎵 セトリ', ...sl.map(s => s.曲ID === '__MC__' ? '  MC' : `  ${++n}. ${getSongName(s.曲ID)}`));
+          }
+          return L.join('\n');
+        };
         const shareOnLine = (item, type) => {
           let url = '';
           let text = '';
@@ -2317,8 +2354,9 @@
           };
 
           if (type === 'live_detail') {
-            url = forceExternal(currentUrl);
-            text = (item.日にち || '') + ' ' + (item.ライブタイトル || 'Live') + ' 詳細\n' + url;
+            if (!item.ID) { alert('先に保存してから共有してください'); return; }
+            url = forceExternal(currentUrl + '?live=' + encodeURIComponent(item.ID));
+            text = liveShareText(item) + '\n\n▼アプリで開く\n' + url;
           } else if (type === 'live_video') {
             url = forceExternal(item.動画URL);
             text = (item.ライブタイトル || 'Live') + ' 動画\n' + url;
