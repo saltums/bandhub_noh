@@ -175,6 +175,11 @@
                     <span v-else>未定</span>
                     <span v-if="live.時代 === 'jointrally'" class="ml-2 text-[10px] font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full">JointRally</span>
                   </p>
+                  <p v-if="live.出番時間 || live.入り時間 || live.リハ時間" class="text-xs font-bold text-teal-700 mt-2 flex flex-wrap gap-x-3">
+                    <span v-if="live.入り時間"><i class="far fa-clock mr-1"></i>入り {{ live.入り時間 }}</span>
+                    <span v-if="live.リハ時間">リハ {{ live.リハ時間 }}</span>
+                    <span v-if="live.出番時間" class="text-red-600">出番 {{ live.出番時間 }}</span>
+                  </p>
                   <p v-if="actsOf(live).length" class="text-xs text-gray-500 mt-2 leading-relaxed">
                     <i class="fas fa-users mr-1 text-gray-400"></i>{{ actsOf(live).join(' / ') }}
                   </p>
@@ -248,7 +253,8 @@
               <button @click="currentPage = 'lives'" class="p-2 mr-2 active:opacity-70 rounded"><i class="fas fa-arrow-left"></i></button>
               <div class="overflow-hidden flex-grow">
                 <p class="text-xs font-bold opacity-80 mt-1">{{ formatDate(activeLive.日にち) }} @{{activeLive.ライブ場所}}</p>
-                <h2 class="font-black text-lg truncate leading-tight">{{activeLive.ライブタイトル}}</h2>
+                <h2 class="font-black text-lg truncate leading-tight">{{activeLive.ライブタイトル || (activeLive.ID ? 'タイトル未定' : '新しいライブ')}}</h2>
+                <p v-if="activeLive.出番時間" class="text-[11px] font-bold opacity-90">出番 {{ activeLive.出番時間 }}<span v-if="activeLive.入り時間"> ・ 入り {{ activeLive.入り時間 }}</span></p>
               </div>
               <span class="text-xs font-bold px-2 py-1 rounded-full bg-white/20 ml-2">{{ activeLive.ステータス || '参加' }}</span>
             </div>
@@ -275,6 +281,46 @@
 
             <!-- 概要タブ -->
             <div v-if="liveDetailTab === 'overview'" class="space-y-4">
+              <!-- 同じ日に登録済みのライブ -->
+              <div v-if="sameDayLives.length" class="bg-yellow-50 border border-yellow-300 rounded-2xl p-4">
+                <p class="text-xs font-bold text-yellow-800 mb-2"><i class="fas fa-exclamation-triangle mr-1"></i>この日はすでに登録があります</p>
+                <div v-for="l in sameDayLives" :key="l.ID" class="flex items-center gap-2 bg-white rounded-lg border border-yellow-200 p-2 mb-1">
+                  <div class="flex-grow min-w-0">
+                    <p class="text-sm font-bold text-gray-800 truncate">{{ l.ライブタイトル || 'タイトル未定' }}</p>
+                    <p class="text-[10px] text-gray-500 truncate">{{ l.ライブ場所 || '場所未定' }} ・ {{ l.ステータス || '参加' }}</p>
+                  </div>
+                  <button @click="switchToLive(l)" class="shrink-0 bg-yellow-500 text-white text-xs font-bold px-3 py-2 rounded-lg active:scale-95">
+                    {{ flyerResult ? 'こっちに反映' : '開く' }}</button>
+                </div>
+                <p v-if="!activeLive.ID" class="text-[10px] text-yellow-700 mt-1">仮で入れていた予定なら、新しく作らずにそちらを更新するのがおすすめです</p>
+              </div>
+
+              <!-- 告知文から自動入力 -->
+              <div class="bg-white rounded-2xl shadow-sm border border-teal-200 overflow-hidden">
+                <button @click="flyerOpen = !flyerOpen" class="w-full flex items-center justify-between px-4 py-3 text-sm font-bold text-teal-700">
+                  <span><i class="fas fa-paste mr-2"></i>告知文を貼って自動入力</span>
+                  <i class="fas" :class="flyerOpen ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+                </button>
+                <div v-if="flyerOpen" class="px-4 pb-4">
+                  <textarea v-model="flyerText" placeholder="主催から届いた告知文・タイムテーブルをそのまま貼り付け"
+                    class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm h-28"></textarea>
+                  <button @click="readFlyer" :disabled="!flyerText.trim()"
+                    class="w-full mt-2 bg-teal-600 disabled:bg-gray-300 text-white font-bold py-2 rounded-lg text-sm active:scale-95">読み取る</button>
+                  <div v-if="flyerResult" class="mt-3">
+                    <p v-if="!flyerResult.length" class="text-xs text-gray-500">読み取れる項目がありませんでした</p>
+                    <div v-else class="bg-teal-50 rounded-lg p-3 text-xs space-y-1">
+                      <div v-for="r in flyerResult" :key="r.k" class="flex gap-2">
+                        <span class="w-16 shrink-0 font-bold text-teal-700">{{ r.k.replace('(分)', '') }}</span>
+                        <span class="text-gray-800 break-all">{{ Array.isArray(r.v) ? r.v.join(' / ') : r.v }}</span>
+                      </div>
+                    </div>
+                    <button v-if="flyerResult.length" @click="applyFlyer"
+                      class="w-full mt-2 bg-teal-500 text-white font-bold py-2 rounded-lg text-sm active:scale-95">この内容をフォームに入れる</button>
+                    <p class="text-[10px] text-gray-400 mt-1">告知文は備考にも残ります。反映後に確認して「保存する」を押してください</p>
+                  </div>
+                </div>
+              </div>
+
               <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200">
 
                 <!-- ステータス選択 -->
@@ -303,7 +349,7 @@
 
                 <div class="mb-4">
                   <label class="text-xs font-bold text-gray-500 block mb-1">ライブタイトル</label>
-                  <input type="text" v-model="activeLive.ライブタイトル"
+                  <input type="text" v-model="activeLive.ライブタイトル" placeholder="イベント名"
                     class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2">
                 </div>
                 <div class="grid grid-cols-2 gap-4 mb-4">
@@ -317,6 +363,36 @@
                     <input type="number" v-model="activeLive['制限時間(分)']"
                       class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2">
                   </div>
+                </div>
+                <div class="mb-4">
+                  <label class="text-xs font-bold text-gray-500 block mb-1">nohの時間</label>
+                  <div class="grid grid-cols-3 gap-2">
+                    <div><span class="text-[10px] text-gray-400">入り</span>
+                      <input type="text" v-model="activeLive.入り時間" placeholder="15:00" inputmode="numeric"
+                        class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-2 text-sm"></div>
+                    <div><span class="text-[10px] text-gray-400">リハ</span>
+                      <input type="text" v-model="activeLive.リハ時間" placeholder="16:10-16:30" inputmode="numeric"
+                        class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-2 text-sm"></div>
+                    <div><span class="text-[10px] text-gray-400">出番</span>
+                      <input type="text" v-model="activeLive.出番時間" placeholder="20:05-20:35" inputmode="numeric"
+                        class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-2 text-sm"></div>
+                  </div>
+                </div>
+                <div class="mb-4 grid grid-cols-3 gap-2">
+                  <div><label class="text-xs font-bold text-gray-500 block mb-1">開場</label>
+                    <input type="text" v-model="activeLive.開場" placeholder="17:30" inputmode="numeric"
+                      class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-2 text-sm"></div>
+                  <div><label class="text-xs font-bold text-gray-500 block mb-1">開演</label>
+                    <input type="text" v-model="activeLive.開演" placeholder="18:00" inputmode="numeric"
+                      class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-2 text-sm"></div>
+                  <div><label class="text-xs font-bold text-gray-500 block mb-1">都道府県</label>
+                    <input type="text" v-model="activeLive.都道府県" placeholder="愛知"
+                      class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-2 text-sm"></div>
+                </div>
+                <div class="mb-4">
+                  <label class="text-xs font-bold text-gray-500 block mb-1">料金</label>
+                  <input type="text" v-model="activeLive.料金" placeholder="ADV 2500 / DOOR 3000(ドリンク別600)"
+                    class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm">
                 </div>
                 <div class="mb-4">
                   <label class="text-xs font-bold text-gray-500 block mb-1">場所 (会場名)</label>
@@ -348,12 +424,7 @@
                     <button type="button" @click="addAct(activeLive)"
                       class="bg-teal-600 text-white px-4 rounded-lg text-sm font-bold active:bg-teal-700">追加</button>
                   </div>
-                  <p v-if="activeLive.開場 || activeLive.開演 || activeLive.料金 || activeLive.出典" class="text-[11px] text-gray-400 mt-1">
-                    <span v-if="activeLive.開場">開場 {{ activeLive.開場 }}</span>
-                    <span v-if="activeLive.開演"> / 開演 {{ activeLive.開演 }}</span>
-                    <span v-if="activeLive.料金"> / {{ activeLive.料金 }}</span>
-                    <span v-if="activeLive.出典"> ・出典: {{ activeLive.出典 }}</span>
-                  </p>
+                  <p v-if="activeLive.出典" class="text-[11px] text-gray-400 mt-1">出典: {{ activeLive.出典 }}</p>
                 </div>
 
                 <!-- 動画URL・写真URL -->
@@ -385,9 +456,9 @@
                 <!-- 参加メンバー管理 -->
                 <div class="mb-6">
                   <label class="text-xs font-bold text-gray-500 block mb-2 border-b pb-1">参加メンバー</label>
-                  <div class="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-1">
+                  <div class="grid grid-cols-3 gap-1.5 p-1">
                     <div v-for="m in db.members" :key="m.ID"
-                      class="flex items-center justify-between bg-white border border-gray-200 p-2 rounded-lg text-sm shadow-sm transition active:scale-95"
+                      class="flex items-center justify-between bg-white border border-gray-200 p-2 rounded-lg text-sm shadow-sm transition active:scale-95 cursor-pointer"
                       @click="toggleLiveMember(m.ID)">
                       <div class="flex flex-col">
                         <span class="text-gray-800 font-bold text-xs">{{ m.名前 }}</span>
@@ -405,7 +476,7 @@
                 <div class="mb-6">
                   <label class="text-xs font-bold text-gray-500 block mb-1">備考</label>
                   <textarea v-model="activeLive.備考"
-                    class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm h-24"></textarea>
+                    class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm h-40"></textarea>
                 </div>
                 <button @click="saveActiveLive" :disabled="saving"
                   class="w-full bg-teal-600 text-white font-bold py-3 rounded-xl shadow active:scale-95 transition">
@@ -1301,6 +1372,138 @@
 
     const { createApp, ref, computed, onMounted, nextTick } = Vue;
 
+    // --- 告知文パーサー: 主催の告知文から日付・会場・時間・料金・対バン・自分たちの枠を読み取る ---
+    function parseFlyer(raw, opts = {}) {
+      const band = (opts.band || 'noh').toLowerCase();
+      const venues = opts.venues || [];
+      const today = opts.today || new Date().toISOString().slice(0, 10);
+      const text = String(raw || '').normalize('NFKC').replace(/\r/g, '');
+      const lines = text.split('\n').map(s => s.trim());
+      const out = {};
+      const T = '(\\d{1,2}:\\d{2})';
+      const pad = (t) => t.replace(/^(\d):/, '0$1:');
+      const toMin = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+    
+      // 日付
+      let dateLine = -1;
+      for (let i = 0; i < lines.length && dateLine < 0; i++) {
+        let m = lines[i].match(/(20\d{2})\s*[年\/.\-]\s*(\d{1,2})\s*[月\/.\-]\s*(\d{1,2})/);
+        if (m) { out.日にち = `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`; dateLine = i; break; }
+        m = lines[i].match(/(?:^|[^\d:])(\d{1,2})\s*[月\/]\s*(\d{1,2})\s*日?(?:\s*[(（]|$|\s)/);
+        if (m && +m[1] >= 1 && +m[1] <= 12 && +m[2] >= 1 && +m[2] <= 31) {
+          let y = +today.slice(0, 4);
+          const md = `${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`;
+          if (`${y}-${md}` < today) y++;
+          out.日にち = `${y}-${md}`; dateLine = i;
+        }
+      }
+    
+      // 開場・開演
+      let m = text.match(new RegExp(`OPEN\\s*/\\s*START\\s*:?\\s*${T}\\s*/\\s*${T}`, 'i'))
+           || text.match(new RegExp(`開場\\s*/\\s*開演\\s*:?\\s*${T}\\s*/\\s*${T}`));
+      if (m) { out.開場 = pad(m[1]); out.開演 = pad(m[2]); }
+      else {
+        m = text.match(new RegExp(`(?:OPEN|開場)\\s*:?\\s*${T}`, 'i')); if (m) out.開場 = pad(m[1]);
+        m = text.match(new RegExp(`(?:START|開演)\\s*:?\\s*${T}`, 'i')); if (m) out.開演 = pad(m[1]);
+      }
+    
+      // 料金
+      const num = (s) => s.replace(/,/g, '');
+      const adv = text.match(/(?:ADV|前売り?)\.?\s*[:]?\s*[¥]?\s*([\d,]{3,})/i);
+      const door = text.match(/(?:DOOR|当日)\.?\s*[:]?\s*[¥]?\s*([\d,]{3,})/i);
+      const priceParts = [];
+      if (adv) priceParts.push(`ADV ${num(adv[1])}`);
+      if (door) priceParts.push(`DOOR ${num(door[1])}`);
+      if (priceParts.length) {
+        let p = priceParts.join(' / ');
+        const d = text.match(/(?:ドリンク|D代|1D)[^\n\d]{0,10}?([\d,]{3,})\s*円?/i);
+        if (/ドリンク代?込|D込|ドリンク付/.test(text)) p += '(ドリンク込)';
+        else if (d) p += `(ドリンク別${num(d[1])})`;
+        else if (/ドリンク|\+1D|1D別/i.test(text)) p += '(ドリンク別)';
+        out.料金 = p;
+      }
+    
+      // 会場(過去の会場名と照合 → だめなら日付の次の行)
+      const squash = (s) => s.toLowerCase().replace(/[\s・]/g, '');
+      const flat = squash(text);
+      const hit = venues.filter(v => v && squash(v).length >= 2 && flat.includes(squash(v))).sort((a, b) => b.length - a.length)[0];
+      let venueLine = -1;
+      if (hit) {
+        out.ライブ場所 = hit;
+        venueLine = lines.findIndex(l => squash(l).includes(squash(hit)));
+      } else if (dateLine >= 0) {
+        for (let i = dateLine + 1; i < lines.length; i++) {
+          if (!lines[i]) continue;
+          if (lines[i].length <= 30 && !/\d{1,2}:\d{2}|act|出演|[¥]/i.test(lines[i])) { out.ライブ場所 = lines[i].replace(/^(会場|場所|@)\s*[:]?\s*/, ''); venueLine = i; }
+          break;
+        }
+      }
+    
+      // 対バン
+      const isActHead = (l) => /^(act|acts|出演|出演者|line\s*-?up)\s*[:]?/i.test(l);
+      const bullet = /^[■□●○◆◇★☆・*\-]\s*/;
+      const acts = [];
+      const pushAct = (s) => {
+        s = s.replace(bullet, '').replace(/[(（](?:[^)）]*)[)）]\s*$/, (x) => /[a-z]/i.test(x) && x.length > 8 ? '' : x).trim();
+        if (!s || s.length > 40 || /\d{1,2}:\d{2}|[¥]|円/.test(s)) return;
+        if (new RegExp(`^${band}$`, 'i').test(s.replace(/[(（].*?[)）]/g, '').trim())) return;
+        if (!acts.includes(s)) acts.push(s);
+      };
+      let actStart = lines.findIndex(isActHead);
+      if (actStart >= 0) {
+        const head = lines[actStart].replace(/^(act|acts|出演|出演者|line\s*-?up)\s*[:]?/i, '').trim();
+        if (head) head.split(/\s+\/\s+|、|,|\s*\/\s*(?=[^\s])/).forEach(pushAct);
+        for (let i = actStart + 1; i < lines.length; i++) {
+          if (!lines[i]) { if (acts.length) break; else continue; }
+          if (/^(ADV|DOOR|OPEN|START|前売|当日|開場|開演|▼|【)/i.test(lines[i])) break;
+          pushAct(lines[i]);
+        }
+      } else {
+        lines.forEach((l, i) => { if (bullet.test(l) && /^[■□●○◆◇★☆]/.test(l)) { if (actStart < 0) actStart = i; pushAct(l); } });
+      }
+      if (acts.length) out.対バン = acts;
+    
+      // タイトル(会場 or 日付の後 〜 出演者の前)
+      const from = Math.max(venueLine, dateLine) + 1;
+      const to = actStart >= 0 ? actStart : Math.min(lines.length, from + 3);
+      if (from > 0) {
+        const t = lines.slice(from, to).filter(l => l && !/\d{1,2}:\d{2}|[¥]|ADV|DOOR|▼|【/i.test(l));
+        if (t.length) out.ライブタイトル = t.slice(0, 3).join(' ');
+      }
+    
+      // タイムテーブル(自分たちの枠)
+      const openMin = out.開場 ? toMin(out.開場) : null;
+      const slots = [];
+      lines.forEach((l) => {
+        let s = l.match(new RegExp(`^${T}\\s*[-~〜～]\\s*${T}\\s*(.+)$`));
+        if (!s) { const r = l.match(new RegExp(`^(.+?)\\s*[:]?\\s*${T}\\s*[-~〜～]\\s*${T}\\s*$`)); if (r) s = [r[0], r[2], r[3], r[1]]; }
+        if (!s) return;
+        const name = s[3].replace(/[(（].*?[)）]/g, '').trim();
+        if (!new RegExp(`(^|[^a-z0-9])${band}([^a-z0-9]|$)`, 'i').test(name)) return;
+        slots.push({ from: pad(s[1]), to: pad(s[2]), reh: /リハ|rehearsal/i.test(s[3]) });
+      });
+      if (slots.length) {
+        let reh = slots.find(x => x.reh);
+        let show = slots.filter(x => !x.reh);
+        if (!reh && show.length >= 2) { reh = show[0]; show = show.slice(1); }
+        if (!reh && show.length === 1 && openMin != null && toMin(show[0].from) < openMin) { reh = show[0]; show = []; }
+        if (reh) out.リハ時間 = `${reh.from}-${reh.to}`;
+        if (show.length) {
+          const sh = show[show.length - 1];
+          out.出番時間 = `${sh.from}-${sh.to}`;
+          const d = toMin(sh.to) - toMin(sh.from);
+          if (d > 0 && d <= 180) out['制限時間(分)'] = d;
+        }
+      }
+      // 入り時間
+      for (const l of lines) {
+        if (/staff|スタッフ/i.test(l)) continue;
+        const s = l.match(new RegExp(`${T}\\s*[^\\d\\n]{0,8}入り`)) || l.match(new RegExp(`入り(?:時間)?\\s*[:]?\\s*${T}`));
+        if (s) { out.入り時間 = pad(s[1]); break; }
+      }
+      return out;
+    }
+
     createApp({
       setup() {
         const currentPage = ref('home');
@@ -1605,6 +1808,7 @@
           activeLive.value = { ...live };
           if (!activeLive.value.参加メンバー) activeLive.value.参加メンバー = [];
           liveDetailTab.value = 'overview';
+          flyerOpen.value = false; flyerText.value = ''; flyerResult.value = null;
           currentPage.value = 'live_detail';
           activeSetlist.value = db.value.setlists
             .filter(s => s.ライブID === live.ID)
@@ -1627,7 +1831,8 @@
           nextTick(() => initSortable('modal-setlist-container'));
         };
         const openLiveModal = () => {
-          goToLiveDetail({ ID: '', 日にち: new Date().toISOString().slice(0, 10), ライブ場所: '', ライブタイトル: '新規ライブ', '制限時間(分)': 30, ステータス: '参加', 動画URL: '', 写真URL: '', 備考: '', 参加メンバー: [] });
+          goToLiveDetail({ ID: '', 日にち: new Date().toISOString().slice(0, 10), ライブ場所: '', ライブタイトル: '', '制限時間(分)': 30, ステータス: '参加', 動画URL: '', 写真URL: '', 備考: '', 参加メンバー: db.value.members.filter(m => m.区分 === '正規').map(m => m.ID) });
+          flyerOpen.value = true;
         };
         const toggleLiveMember = (memberId) => {
           if (!activeLive.value.参加メンバー) activeLive.value.参加メンバー = [];
@@ -1635,6 +1840,44 @@
           if (idx >= 0) activeLive.value.参加メンバー.splice(idx, 1);
           else activeLive.value.参加メンバー.push(memberId);
           activeLive.value.参加メンバー = [...activeLive.value.参加メンバー];
+        };
+        // 告知文の貼り付け → 自動入力
+        const flyerOpen = ref(false);
+        const flyerText = ref('');
+        const flyerResult = ref(null);
+        const FLYER_KEYS = ['日にち', 'ライブ場所', 'ライブタイトル', '入り時間', 'リハ時間', '出番時間', '制限時間(分)', '開場', '開演', '料金', '対バン'];
+        const readFlyer = () => {
+          const venues = [...new Set(db.value.lives.map(l => l.ライブ場所).filter(Boolean))];
+          const r = parseFlyer(flyerText.value, { band: 'noh', venues, today: new Date().toISOString().slice(0, 10) });
+          flyerResult.value = FLYER_KEYS.filter(k => r[k] != null && r[k] !== '').map(k => ({ k, v: r[k] }));
+        };
+        const applyFlyer = () => {
+          if (!flyerResult.value) return;
+          const live = activeLive.value;
+          flyerResult.value.forEach(({ k, v }) => {
+            if (k === '対バン') { const cur = actsOf(live).slice(); v.forEach(n => { if (!cur.includes(n)) cur.push(n); }); live.対バン = cur; }
+            else live[k] = v;
+          });
+          // 都道府県は過去の同じ会場から引き継ぐ
+          if (!live.都道府県 && live.ライブ場所) {
+            const past = db.value.lives.find(l => l.ライブ場所 === live.ライブ場所 && l.都道府県);
+            if (past) live.都道府県 = past.都道府県;
+          }
+          // 告知文そのものは備考に残す(タイテ・駐車場などの細かい案内用)
+          const t = flyerText.value.trim();
+          if (t && !(live.備考 || '').includes(t)) live.備考 = live.備考 ? `${live.備考}\n\n---告知文---\n${t}` : t;
+          flyerOpen.value = false;
+        };
+        // 同じ日に登録済みのライブ(仮登録の二重化を防ぐ)
+        const sameDayLives = computed(() => {
+          const a = activeLive.value;
+          if (!a || !a.日にち) return [];
+          return db.value.lives.filter(l => l.日にち === a.日にち && l.ID !== a.ID);
+        });
+        const switchToLive = (l) => {
+          const keep = flyerResult.value ? { text: flyerText.value, result: flyerResult.value } : null;
+          goToLiveDetail(l);
+          if (keep) { flyerText.value = keep.text; flyerResult.value = keep.result; applyFlyer(); }
         };
         const saveActiveLive = async () => {
           if (!activeLive.value) return;
@@ -1858,7 +2101,7 @@
           '🎰 インストバンドガチャを引く'
         ];
         const AI_FIELDS = {
-          live: ['日にち', 'ライブ場所', 'ライブタイトル', '制限時間(分)', '備考', 'チケット代', 'ステータス', '参加メンバー', '対バン', '開場', '開演', '料金'],
+          live: ['日にち', 'ライブ場所', 'ライブタイトル', '制限時間(分)', '備考', 'チケット代', 'ステータス', '参加メンバー', '対バン', '開場', '開演', '料金', '都道府県', '入り時間', 'リハ時間', '出番時間'],
           song: ['曲名', '時間(分)', '時間(秒)', 'BPM', '備考', 'カポ', 'リンクURL', '参加メンバー'],
           studio: ['日にち', '場所', '参加メンバー', '備考', '開始時間', '終了時間'],
           guest: ['名前', '人数', 'チケット不要フラグ', '合計金額'],
@@ -2054,6 +2297,7 @@
           studioYear, studioMonth, changeStudioMonth, getStudiosInExactMonth, uniqueStudioVenues,
           showStudioModal, editStudio, studioUrls, urlList, openStudioModal, saveStudio, toggleStudioMember,
           activeLive, liveDetailTab, goToLiveDetail, goToSetlist, openLiveModal, saveActiveLive, toggleLiveMember,
+          flyerOpen, flyerText, flyerResult, readFlyer, applyFlyer, sameDayLives, switchToLive,
           showSetlistModal, openSetlistModal, 
           activeSetlist, showSongSelector, getSongName, getSongTime, formatTimeStr, songNumberOf,
           currentSetlistTotalTime, currentSetlistTotalTimeNum, addMCToSetlist, addToSetlist, removeFromSetlist, saveSetlist,
