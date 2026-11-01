@@ -250,7 +250,7 @@
           <div class="bg-white shadow relative z-10 sticky top-0">
             <div class="p-3 border-b flex items-center text-white"
               :class="activeLive.ステータス==='中止'?'bg-gray-500':activeLive.ステータス==='検討中'?'bg-yellow-500':'bg-teal-600'">
-              <button @click="currentPage = 'lives'" class="p-2 mr-2 active:opacity-70 rounded"><i class="fas fa-arrow-left"></i></button>
+              <button @click="leaveLiveDetail" class="p-2 mr-2 active:opacity-70 rounded"><i class="fas fa-arrow-left"></i></button>
               <div class="overflow-hidden flex-grow">
                 <p class="text-xs font-bold opacity-80 mt-1">{{ formatDate(activeLive.日にち) }} @{{activeLive.ライブ場所}}</p>
                 <h2 class="font-black text-lg truncate leading-tight">{{activeLive.ライブタイトル || (activeLive.ID ? 'タイトル未定' : '新しいライブ')}}</h2>
@@ -258,230 +258,85 @@
               </div>
               <span class="text-xs font-bold px-2 py-1 rounded-full bg-white/20 ml-2">{{ activeLive.ステータス || '参加' }}</span>
             </div>
-            <div class="flex overflow-x-auto hide-scrollbar border-b bg-white text-sm font-bold text-gray-500">
+            <div class="flex border-b bg-white text-xs font-bold text-gray-500">
               <button @click="liveDetailTab='overview'"
                 :class="{'text-teal-600 border-b-2 border-teal-600': liveDetailTab==='overview'}"
-                class="whitespace-nowrap px-5 py-3 transition">概要/編集</button>
+                class="flex-1 whitespace-nowrap px-1 py-3 transition">概要</button>
               <button @click="liveDetailTab='setlist'"
                 :class="{'text-teal-600 border-b-2 border-teal-600': liveDetailTab==='setlist'}"
-                class="whitespace-nowrap px-5 py-3 transition">セットリスト</button>
+                class="flex-1 whitespace-nowrap px-1 py-3 transition">セットリスト</button>
               <button @click="liveDetailTab='guests'"
                 :class="{'text-teal-600 border-b-2 border-teal-600': liveDetailTab==='guests'}"
-                class="whitespace-nowrap px-5 py-3 transition">ゲスト管理</button>
+                class="flex-1 whitespace-nowrap px-1 py-3 transition">ゲスト管理</button>
               <button @click="liveDetailTab='stageplot'"
                 :class="{'text-teal-600 border-b-2 border-teal-600': liveDetailTab==='stageplot'}"
-                class="whitespace-nowrap px-5 py-3 transition">セット図</button>
+                class="flex-1 whitespace-nowrap px-1 py-3 transition">セット図</button>
               <button @click="liveDetailTab='files'"
                 :class="{'text-teal-600 border-b-2 border-teal-600': liveDetailTab==='files'}"
-                class="whitespace-nowrap px-5 py-3 transition">資料</button>
+                class="flex-1 whitespace-nowrap px-1 py-3 transition">資料</button>
             </div>
           </div>
 
-          <div class="flex-grow overflow-y-auto p-4 pb-24 relative">
+          <div class="flex-grow overflow-y-auto p-3 pb-24 relative">
 
             <!-- 概要タブ -->
-            <div v-if="liveDetailTab === 'overview'" class="space-y-4">
+            <div v-if="liveDetailTab === 'overview'" class="space-y-2.5 pb-20">
+              <!-- 新規: 告知文から一発入力 -->
+              <button v-if="!activeLive.ID && !flyerFilled.length" @click="pasteFlyer"
+                class="w-full bg-gradient-to-r from-teal-500 to-emerald-500 text-white rounded-2xl px-4 py-3 shadow active:scale-[0.98] transition flex items-center gap-3 text-left">
+                <i class="fas fa-paste text-2xl"></i>
+                <span><span class="block font-black text-base">告知文を貼り付けて自動入力</span>
+                  <span class="block text-[11px] opacity-90">主催の告知文をコピーしてからタップ</span></span>
+              </button>
+
               <!-- 同じ日に登録済みのライブ -->
-              <div v-if="sameDayLives.length" class="bg-yellow-50 border border-yellow-300 rounded-2xl p-4">
-                <p class="text-xs font-bold text-yellow-800 mb-2"><i class="fas fa-exclamation-triangle mr-1"></i>この日はすでに登録があります</p>
-                <div v-for="l in sameDayLives" :key="l.ID" class="flex items-center gap-2 bg-white rounded-lg border border-yellow-200 p-2 mb-1">
-                  <div class="flex-grow min-w-0">
-                    <p class="text-sm font-bold text-gray-800 truncate">{{ l.ライブタイトル || 'タイトル未定' }}</p>
-                    <p class="text-[10px] text-gray-500 truncate">{{ l.ライブ場所 || '場所未定' }} ・ {{ l.ステータス || '参加' }}</p>
-                  </div>
-                  <button @click="switchToLive(l)" class="shrink-0 bg-yellow-500 text-white text-xs font-bold px-3 py-2 rounded-lg active:scale-95">
-                    {{ flyerResult ? 'こっちに反映' : '開く' }}</button>
+              <div v-for="l in sameDayLives" :key="l.ID" class="bg-yellow-50 border border-yellow-300 rounded-2xl px-3 py-2 flex items-center gap-3">
+                <i class="fas fa-exclamation-triangle text-yellow-500 text-lg"></i>
+                <div class="flex-grow min-w-0">
+                  <p class="text-[11px] font-bold text-yellow-800">この日はもう登録があります</p>
+                  <p class="text-sm font-bold text-gray-800 truncate">{{ l.ライブタイトル || 'タイトル未定' }}</p>
+                  <p class="text-[10px] text-gray-500 truncate">{{ l.ライブ場所 || '場所未定' }}</p>
                 </div>
-                <p v-if="!activeLive.ID" class="text-[10px] text-yellow-700 mt-1">仮で入れていた予定なら、新しく作らずにそちらを更新するのがおすすめです</p>
+                <button @click="switchToLive(l)" class="shrink-0 bg-yellow-500 text-white text-xs font-black px-3 py-2.5 rounded-xl active:scale-95">
+                  {{ activeLive.ID ? '開く' : 'こっちを更新' }}</button>
               </div>
 
-              <!-- 告知文から自動入力 -->
-              <div class="bg-white rounded-2xl shadow-sm border border-teal-200 overflow-hidden">
-                <button @click="flyerOpen = !flyerOpen" class="w-full flex items-center justify-between px-4 py-3 text-sm font-bold text-teal-700">
-                  <span><i class="fas fa-paste mr-2"></i>告知文を貼って自動入力</span>
-                  <i class="fas" :class="flyerOpen ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+              <!-- 項目一覧(タップで編集) -->
+              <div class="bg-white rounded-2xl shadow-sm border border-gray-200 divide-y divide-gray-100 overflow-hidden">
+                <button v-for="r in liveRows" :key="r.key" @click="liveSheet = r.key"
+                  class="w-full flex items-center gap-2 px-3 py-2 text-left active:bg-gray-100 transition min-h-[40px]"
+                  :class="flyerFilled.includes(r.key) ? 'bg-teal-50' : ''">
+                  <i class="fas w-4 text-center text-sm" :class="[r.icon, r.value ? 'text-teal-500' : 'text-gray-300']"></i>
+                  <span class="w-[4.5rem] shrink-0 text-[11px] font-bold text-gray-400 leading-tight">{{ r.label }}</span>
+                  <span v-if="r.value" class="flex-grow min-w-0 text-[13px] font-bold text-gray-800 leading-snug line-clamp-2 break-words">{{ r.value }}</span>
+                  <span v-else class="flex-grow text-[13px] text-gray-300">未入力</span>
+                  <i class="fas fa-chevron-right text-gray-300 text-[10px]"></i>
                 </button>
-                <div v-if="flyerOpen" class="px-4 pb-4">
-                  <textarea v-model="flyerText" placeholder="主催から届いた告知文・タイムテーブルをそのまま貼り付け"
-                    class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm h-28"></textarea>
-                  <button @click="readFlyer" :disabled="!flyerText.trim()"
-                    class="w-full mt-2 bg-teal-600 disabled:bg-gray-300 text-white font-bold py-2 rounded-lg text-sm active:scale-95">読み取る</button>
-                  <div v-if="flyerResult" class="mt-3">
-                    <p v-if="!flyerResult.length" class="text-xs text-gray-500">読み取れる項目がありませんでした</p>
-                    <div v-else class="bg-teal-50 rounded-lg p-3 text-xs space-y-1">
-                      <div v-for="r in flyerResult" :key="r.k" class="flex gap-2">
-                        <span class="w-16 shrink-0 font-bold text-teal-700">{{ r.k.replace('(分)', '') }}</span>
-                        <span class="text-gray-800 break-all">{{ Array.isArray(r.v) ? r.v.join(' / ') : r.v }}</span>
-                      </div>
-                    </div>
-                    <button v-if="flyerResult.length" @click="applyFlyer"
-                      class="w-full mt-2 bg-teal-500 text-white font-bold py-2 rounded-lg text-sm active:scale-95">この内容をフォームに入れる</button>
-                    <p class="text-[10px] text-gray-400 mt-1">告知文は備考にも残ります。反映後に確認して「保存する」を押してください</p>
-                  </div>
-                </div>
               </div>
 
-              <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200">
-
-                <!-- ステータス選択 -->
-                <div class="mb-4">
-                  <label class="text-xs font-bold text-gray-500 block mb-2">ステータス</label>
-                  <div class="flex space-x-2">
-                    <button @click="activeLive.ステータス = '参加'"
-                      :class="(!activeLive.ステータス || activeLive.ステータス==='参加') ? 'bg-teal-500 text-white shadow' : 'bg-gray-100 text-gray-600'"
-                      class="flex-1 py-2 rounded-lg text-sm font-bold transition">参加</button>
-                    <button @click="activeLive.ステータス = '検討中'"
-                      :class="activeLive.ステータス==='検討中' ? 'bg-yellow-500 text-white shadow' : 'bg-gray-100 text-gray-600'"
-                      class="flex-1 py-2 rounded-lg text-sm font-bold transition">検討中</button>
-                    <button @click="activeLive.ステータス = '中止'"
-                      :class="activeLive.ステータス==='中止' ? 'bg-gray-500 text-white shadow' : 'bg-gray-100 text-gray-600'"
-                      class="flex-1 py-2 rounded-lg text-sm font-bold transition">中止</button>
-                  </div>
-                </div>
-
-                <div class="flex justify-between items-center mb-6 mt-4 border-t pt-4">
-                  <h3 class="text-[10px] font-black text-gray-400 uppercase tracking-widest flex-grow">ライブ概要</h3>
-                  <button @click="shareOnLine(activeLive, 'live_detail')"
-                    class="ml-4 bg-[#06C755] text-white px-3 py-1 rounded-full text-[9px] font-black shadow active:scale-95 transition flex items-center">
-                    <i class="fab fa-line text-lg mr-1.5"></i>このライブを共有
+              <!-- 参加メンバー(タップで切り替え) -->
+              <div class="bg-white rounded-2xl shadow-sm border border-gray-200 px-3 py-2">
+                <p class="text-[10px] font-bold text-gray-400 mb-1.5">参加メンバー(タップで切り替え)</p>
+                <div class="grid grid-cols-5 gap-1.5">
+                  <button v-for="m in db.members" :key="m.ID" @click="toggleLiveMember(m.ID)"
+                    class="rounded-xl py-1 text-center transition active:scale-95 border"
+                    :class="activeLive.参加メンバー && activeLive.参加メンバー.includes(m.ID) ? 'bg-teal-500 border-teal-500 text-white' : 'bg-gray-50 border-gray-200 text-gray-400'">
+                    <span class="block text-[11px] font-black leading-tight truncate px-0.5">{{ m.名前 }}</span>
+                    <span class="block text-[9px] opacity-80 leading-tight">{{ m.パート }}</span>
                   </button>
                 </div>
+              </div>
 
-                <div class="mb-4">
-                  <label class="text-xs font-bold text-gray-500 block mb-1">ライブタイトル</label>
-                  <input type="text" v-model="activeLive.ライブタイトル" placeholder="イベント名"
-                    class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2">
-                </div>
-                <div class="grid grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <label class="text-xs font-bold text-gray-500 block mb-1">日にち</label>
-                    <input type="date" v-model="activeLive.日にち"
-                      class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2">
-                  </div>
-                  <div>
-                    <label class="text-xs font-bold text-gray-500 block mb-1">制限時間 (分)</label>
-                    <input type="number" v-model="activeLive['制限時間(分)']"
-                      class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2">
-                  </div>
-                </div>
-                <div class="mb-4">
-                  <label class="text-xs font-bold text-gray-500 block mb-1">nohの時間</label>
-                  <div class="grid grid-cols-3 gap-2">
-                    <div><span class="text-[10px] text-gray-400">入り</span>
-                      <input type="text" v-model="activeLive.入り時間" placeholder="15:00" inputmode="numeric"
-                        class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-2 text-sm"></div>
-                    <div><span class="text-[10px] text-gray-400">リハ</span>
-                      <input type="text" v-model="activeLive.リハ時間" placeholder="16:10-16:30" inputmode="numeric"
-                        class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-2 text-sm"></div>
-                    <div><span class="text-[10px] text-gray-400">出番</span>
-                      <input type="text" v-model="activeLive.出番時間" placeholder="20:05-20:35" inputmode="numeric"
-                        class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-2 text-sm"></div>
-                  </div>
-                </div>
-                <div class="mb-4 grid grid-cols-3 gap-2">
-                  <div><label class="text-xs font-bold text-gray-500 block mb-1">開場</label>
-                    <input type="text" v-model="activeLive.開場" placeholder="17:30" inputmode="numeric"
-                      class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-2 text-sm"></div>
-                  <div><label class="text-xs font-bold text-gray-500 block mb-1">開演</label>
-                    <input type="text" v-model="activeLive.開演" placeholder="18:00" inputmode="numeric"
-                      class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-2 text-sm"></div>
-                  <div><label class="text-xs font-bold text-gray-500 block mb-1">都道府県</label>
-                    <input type="text" v-model="activeLive.都道府県" placeholder="愛知"
-                      class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-2 text-sm"></div>
-                </div>
-                <div class="mb-4">
-                  <label class="text-xs font-bold text-gray-500 block mb-1">料金</label>
-                  <input type="text" v-model="activeLive.料金" placeholder="ADV 2500 / DOOR 3000(ドリンク別600)"
-                    class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                </div>
-                <div class="mb-4">
-                  <label class="text-xs font-bold text-gray-500 block mb-1">場所 (会場名)</label>
-                  <input type="text" v-model="activeLive.ライブ場所" list="venue-list"
-                    class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2">
-                  <datalist id="venue-list">
-                    <option v-for="venue in uniqueVenues" :key="venue" :value="venue"></option>
-                  </datalist>
-                  <a v-if="activeLive.ライブ場所"
-                    :href="`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activeLive.ライブ場所)}`"
-                    target="_blank" class="text-[10px] text-blue-600 mt-1 inline-block">
-                    <i class="fas fa-map-marker-alt mr-1"></i>Google Mapで開く</a>
-                </div>
-
-                <div class="mb-4">
-                  <label class="text-xs font-bold text-gray-500 block mb-1">対バン</label>
-                  <div class="flex flex-wrap gap-1.5 mb-2" v-if="actsOf(activeLive).length">
-                    <span v-for="(act, i) in actsOf(activeLive)" :key="act + i"
-                      class="inline-flex items-center bg-teal-50 text-teal-700 border border-teal-200 rounded-full pl-3 pr-1 py-1 text-xs font-bold">
-                      {{ act }}
-                      <button type="button" @click="removeAct(activeLive, i)"
-                        class="ml-1 w-5 h-5 rounded-full text-teal-500 hover:bg-teal-100 leading-none" aria-label="削除">×</button>
-                    </span>
-                  </div>
-                  <div class="flex gap-2">
-                    <input type="text" v-model="actInput" placeholder="バンド名を入力して Enter"
-                      @keydown.enter.prevent="addAct(activeLive)" @blur="addAct(activeLive)"
-                      class="flex-1 bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                    <button type="button" @click="addAct(activeLive)"
-                      class="bg-teal-600 text-white px-4 rounded-lg text-sm font-bold active:bg-teal-700">追加</button>
-                  </div>
-                  <p v-if="activeLive.出典" class="text-[11px] text-gray-400 mt-1">出典: {{ activeLive.出典 }}</p>
-                </div>
-
-                <!-- 動画URL・写真URL -->
-                <div class="mb-4 grid grid-cols-1 gap-3">
-                  <div>
-                    <label class="text-xs font-bold text-gray-500 block mb-1"><i class="fas fa-video text-blue-500 mr-1"></i>動画URL</label>
-                    <div class="flex space-x-2">
-                      <input type="text" v-model="activeLive.動画URL" placeholder="https://..."
-                        class="flex-grow bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm text-blue-600">
-                      <button @click="shareOnLine(activeLive, 'live_video')"
-                        class="bg-[#06C755] text-white px-3 py-2 rounded-lg shadow-sm active:scale-95 transition flex items-center justify-center">
-                        <i class="fab fa-line text-xl"></i>
-                      </button>
-                    </div>
-                  </div>
-                  <div>
-                    <label class="text-xs font-bold text-gray-500 block mb-1"><i class="fas fa-camera text-green-500 mr-1"></i>写真URL</label>
-                    <div class="flex space-x-2">
-                      <input type="text" v-model="activeLive.写真URL" placeholder="https://..."
-                        class="flex-grow bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm text-green-600">
-                      <button @click="shareOnLine(activeLive, 'live_photo')"
-                        class="bg-[#06C755] text-white px-3 py-2 rounded-lg shadow-sm active:scale-95 transition flex items-center justify-center">
-                        <i class="fab fa-line text-xl"></i>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- 参加メンバー管理 -->
-                <div class="mb-6">
-                  <label class="text-xs font-bold text-gray-500 block mb-2 border-b pb-1">参加メンバー</label>
-                  <div class="grid grid-cols-3 gap-1.5 p-1">
-                    <div v-for="m in db.members" :key="m.ID"
-                      class="flex items-center justify-between bg-white border border-gray-200 p-2 rounded-lg text-sm shadow-sm transition active:scale-95 cursor-pointer"
-                      @click="toggleLiveMember(m.ID)">
-                      <div class="flex flex-col">
-                        <span class="text-gray-800 font-bold text-xs">{{ m.名前 }}</span>
-                        <span class="text-[9px] text-gray-400">{{ m.パート }}</span>
-                      </div>
-                      <div class="w-8 h-4 rounded-full transition-colors relative"
-                        :class="activeLive.参加メンバー && activeLive.参加メンバー.includes(m.ID) ? 'bg-teal-500' : 'bg-gray-200'">
-                        <div class="w-4 h-4 bg-white rounded-full absolute top-0 shadow transition-transform"
-                          :class="activeLive.参加メンバー && activeLive.参加メンバー.includes(m.ID) ? 'translate-x-4' : 'translate-x-0'"></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="mb-6">
-                  <label class="text-xs font-bold text-gray-500 block mb-1">備考</label>
-                  <textarea v-model="activeLive.備考"
-                    class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm h-40"></textarea>
-                </div>
-                <button @click="saveActiveLive" :disabled="saving"
-                  class="w-full bg-teal-600 text-white font-bold py-3 rounded-xl shadow active:scale-95 transition">
-                  <i class="fas fa-save mr-2"></i>保存する
-                </button>
+              <!-- 保存バー -->
+              <div class="fixed inset-x-0 bottom-[72px] max-w-md mx-auto px-4 z-20 flex gap-2">
+                <button @click="shareOnLine(activeLive, 'live_detail')" aria-label="LINEで共有"
+                  class="w-14 shrink-0 bg-[#06C755] text-white rounded-2xl shadow-lg flex items-center justify-center active:scale-95">
+                  <i class="fab fa-line text-2xl"></i></button>
+                <button @click="saveActiveLive" :disabled="saving || (!liveDirty && !!activeLive.ID)"
+                  class="flex-grow font-black py-3.5 rounded-2xl shadow-lg transition active:scale-95"
+                  :class="liveDirty || !activeLive.ID ? 'bg-teal-600 text-white' : 'bg-gray-200 text-gray-500'">
+                  <i class="fas mr-2" :class="saving ? 'fa-spinner fa-spin' : (liveDirty || !activeLive.ID ? 'fa-save' : 'fa-check')"></i>
+                  {{ saving ? '保存中…' : (liveDirty || !activeLive.ID ? '保存する' : '保存済み') }}</button>
               </div>
             </div>
 
@@ -1266,8 +1121,143 @@
         </div>
       </transition>
 
+      <!-- ライブ編集シート -->
+      <transition name="fade">
+        <div v-if="liveSheet && currentPage === 'live_detail'" class="fixed inset-0 z-[60] bg-black/40" @click.self="liveSheet === 'acts' && addAct(activeLive); liveSheet = ''">
+          <div class="absolute bottom-0 inset-x-0 max-w-md mx-auto bg-white rounded-t-3xl shadow-2xl flex flex-col max-h-[88vh]">
+            <div class="flex items-center justify-between px-5 py-3 border-b">
+              <h3 class="font-black text-gray-800">{{ SHEET_TITLES[liveSheet] }}</h3>
+              <button @click="liveSheet === 'acts' && addAct(activeLive); liveSheet = ''" class="bg-teal-600 text-white text-sm font-black px-5 py-2 rounded-full active:scale-95">完了</button>
+            </div>
+            <div class="p-5 space-y-4 overflow-y-auto">
+
+              <template v-if="liveSheet === 'flyer'">
+                <textarea v-model="flyerText" placeholder="ここに告知文を貼り付け(長押し→ペースト)"
+                  class="w-full bg-gray-50 border border-gray-300 rounded-xl px-3 py-2 text-sm h-56"></textarea>
+                <button @click="runFlyer" :disabled="!flyerText.trim()"
+                  class="w-full bg-teal-600 disabled:bg-gray-300 text-white font-black py-3 rounded-xl active:scale-95">読み取って入力</button>
+              </template>
+
+              <template v-if="liveSheet === 'date'">
+                <input type="date" v-model="activeLive.日にち" class="w-full bg-gray-50 border border-gray-300 rounded-xl px-3 py-3 text-lg font-bold">
+                <div class="grid grid-cols-3 gap-2">
+                  <button v-for="st in ['参加', '検討中', '中止']" :key="st" @click="activeLive.ステータス = st"
+                    class="py-3 rounded-xl text-sm font-black transition"
+                    :class="(activeLive.ステータス || '参加') === st ? (st === '参加' ? 'bg-teal-500 text-white' : st === '検討中' ? 'bg-yellow-500 text-white' : 'bg-gray-500 text-white') : 'bg-gray-100 text-gray-500'">{{ st }}</button>
+                </div>
+              </template>
+
+              <template v-if="liveSheet === 'venue'">
+                <input type="text" v-model="activeLive.ライブ場所" placeholder="会場名"
+                  class="w-full bg-gray-50 border border-gray-300 rounded-xl px-3 py-3 font-bold">
+                <div>
+                  <p class="text-[10px] font-bold text-gray-400 mb-1.5">最近の会場</p>
+                  <div class="flex flex-wrap gap-1.5">
+                    <button v-for="v in recentVenues" :key="v" @click="pickVenue(v)"
+                      class="px-3 py-1.5 rounded-full text-xs font-bold border transition"
+                      :class="activeLive.ライブ場所 === v ? 'bg-teal-500 text-white border-teal-500' : 'bg-white text-gray-600 border-gray-300'">{{ v }}</button>
+                  </div>
+                </div>
+                <div>
+                  <p class="text-[10px] font-bold text-gray-400 mb-1.5">都道府県</p>
+                  <div class="grid grid-cols-4 gap-1.5">
+                    <button v-for="pf in PREFS" :key="pf" @click="activeLive.都道府県 = pf"
+                      class="py-2 rounded-xl text-xs font-bold transition"
+                      :class="activeLive.都道府県 === pf ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-600'">{{ pf }}</button>
+                  </div>
+                </div>
+              </template>
+
+              <template v-if="liveSheet === 'title'">
+                <input type="text" v-model="activeLive.ライブタイトル" placeholder="イベント名"
+                  class="w-full bg-gray-50 border border-gray-300 rounded-xl px-3 py-3 font-bold">
+              </template>
+
+              <template v-if="liveSheet === 'time'">
+                <div class="grid grid-cols-[3rem_1fr] items-center gap-y-3 gap-x-2">
+                  <span class="text-xs font-black text-gray-500">入り</span>
+                  <input type="time" v-model="activeLive.入り時間" class="bg-gray-50 border border-gray-300 rounded-xl px-3 py-2.5 font-bold w-full">
+                  <span class="text-xs font-black text-gray-500">リハ</span>
+                  <div class="flex items-center gap-1.5">
+                    <input type="time" :value="rangePart('リハ時間', 0)" @change="setRangePart('リハ時間', 0, $event.target.value)" class="flex-1 min-w-0 bg-gray-50 border border-gray-300 rounded-xl px-2 py-2.5 font-bold">
+                    <span class="text-gray-400">〜</span>
+                    <input type="time" :value="rangePart('リハ時間', 1)" @change="setRangePart('リハ時間', 1, $event.target.value)" class="flex-1 min-w-0 bg-gray-50 border border-gray-300 rounded-xl px-2 py-2.5 font-bold">
+                  </div>
+                  <span class="text-xs font-black text-red-500">出番</span>
+                  <div class="flex items-center gap-1.5">
+                    <input type="time" :value="rangePart('出番時間', 0)" @change="setShowStart($event.target.value)" class="flex-1 min-w-0 bg-red-50 border border-red-200 rounded-xl px-2 py-2.5 font-bold">
+                    <span class="text-gray-400">〜</span>
+                    <span class="flex-1 text-center font-black text-gray-700">{{ rangePart('出番時間', 1) || '--:--' }}</span>
+                  </div>
+                </div>
+                <div>
+                  <p class="text-[10px] font-bold text-gray-400 mb-1.5">持ち時間(終わりの時間は自動)</p>
+                  <div class="grid grid-cols-6 gap-1.5">
+                    <button v-for="mm in [20, 25, 30, 35, 40, 45]" :key="mm" @click="setShowLength(mm)"
+                      class="py-2 rounded-xl text-sm font-black transition"
+                      :class="Number(activeLive['制限時間(分)']) === mm ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-600'">{{ mm }}</button>
+                  </div>
+                </div>
+              </template>
+
+              <template v-if="liveSheet === 'door'">
+                <div class="grid grid-cols-2 gap-3">
+                  <label class="block"><span class="text-xs font-black text-gray-500">開場</span>
+                    <input type="time" v-model="activeLive.開場" class="mt-1 w-full bg-gray-50 border border-gray-300 rounded-xl px-3 py-2.5 font-bold"></label>
+                  <label class="block"><span class="text-xs font-black text-gray-500">開演</span>
+                    <input type="time" v-model="activeLive.開演" class="mt-1 w-full bg-gray-50 border border-gray-300 rounded-xl px-3 py-2.5 font-bold"></label>
+                </div>
+                <label class="block"><span class="text-xs font-black text-gray-500">料金</span>
+                  <input type="text" v-model="activeLive.料金" placeholder="ADV 2500 / DOOR 3000(ドリンク別600)"
+                    class="mt-1 w-full bg-gray-50 border border-gray-300 rounded-xl px-3 py-2.5 text-sm"></label>
+              </template>
+
+              <template v-if="liveSheet === 'acts'">
+                <div class="flex flex-wrap gap-1.5" v-if="actsOf(activeLive).length">
+                  <span v-for="(act, i) in actsOf(activeLive)" :key="act + i"
+                    class="inline-flex items-center bg-teal-50 text-teal-700 border border-teal-200 rounded-full pl-3 pr-1 py-1 text-sm font-bold">
+                    {{ act }}
+                    <button type="button" @click="removeAct(activeLive, i)" class="ml-1 w-7 h-7 rounded-full text-teal-500 active:bg-teal-100" aria-label="削除">×</button>
+                  </span>
+                </div>
+                <p v-else class="text-sm text-gray-400">まだいません</p>
+                <div class="flex gap-2">
+                  <input type="text" v-model="actInput" placeholder="バンド名" @keydown.enter.prevent="addAct(activeLive)"
+                    class="flex-1 min-w-0 bg-gray-50 border border-gray-300 rounded-xl px-3 py-2.5">
+                  <button type="button" @click="addAct(activeLive)" class="bg-teal-600 text-white px-5 rounded-xl font-black active:scale-95">追加</button>
+                </div>
+              </template>
+
+              <template v-if="liveSheet === 'memo'">
+                <textarea v-model="activeLive.備考" class="w-full bg-gray-50 border border-gray-300 rounded-xl px-3 py-2 text-sm h-[55vh]"></textarea>
+              </template>
+
+              <template v-if="liveSheet === 'links'">
+                <label class="block"><span class="text-xs font-black text-gray-500"><i class="fas fa-video text-blue-500 mr-1"></i>動画URL</span>
+                  <div class="flex gap-2 mt-1">
+                    <input type="url" v-model="activeLive.動画URL" placeholder="https://..." class="flex-1 min-w-0 bg-gray-50 border border-gray-300 rounded-xl px-3 py-2.5 text-sm">
+                    <button @click="shareOnLine(activeLive, 'live_video')" class="bg-[#06C755] text-white px-3 rounded-xl"><i class="fab fa-line text-xl"></i></button>
+                  </div></label>
+                <label class="block"><span class="text-xs font-black text-gray-500"><i class="fas fa-camera text-green-500 mr-1"></i>写真URL</span>
+                  <div class="flex gap-2 mt-1">
+                    <input type="url" v-model="activeLive.写真URL" placeholder="https://..." class="flex-1 min-w-0 bg-gray-50 border border-gray-300 rounded-xl px-3 py-2.5 text-sm">
+                    <button @click="shareOnLine(activeLive, 'live_photo')" class="bg-[#06C755] text-white px-3 rounded-xl"><i class="fab fa-line text-xl"></i></button>
+                  </div></label>
+              </template>
+            </div>
+          </div>
+        </div>
+      </transition>
+
+      <!-- トースト -->
+      <transition name="fade">
+        <div v-if="toast" class="fixed bottom-[140px] inset-x-0 max-w-md mx-auto px-6 z-[70] pointer-events-none">
+          <div class="bg-gray-900/90 text-white text-sm font-bold rounded-2xl px-4 py-3 text-center shadow-xl">{{ toast }}</div>
+        </div>
+      </transition>
+
       <!-- AIアシスタント (フローティング) -->
-      <div v-show="!showPlotEditor" :class="currentPage === 'home' ? 'bottom-4' : 'bottom-20'" class="fixed inset-x-0 max-w-md mx-auto z-40 pointer-events-none">
+      <div v-show="!showPlotEditor && currentPage !== 'live_detail'" :class="currentPage === 'home' ? 'bottom-4' : 'bottom-20'" class="fixed inset-x-0 max-w-md mx-auto z-40 pointer-events-none">
         <button @click="aiOpen = true" aria-label="AIに聞く"
           class="pointer-events-auto float-right mr-4 w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-white shadow-xl flex items-center justify-center active:scale-95 transition">
           <i class="fas fa-wand-magic-sparkles text-lg"></i>
@@ -1804,17 +1794,28 @@
         // ライブ詳細
         const activeLive = ref({});
         const liveDetailTab = ref('overview');
+        const liveSnapshot = ref('');
+        const snap = () => { liveSnapshot.value = JSON.stringify(activeLive.value); };
+        const liveDirty = computed(() => currentPage.value === 'live_detail' && JSON.stringify(activeLive.value) !== liveSnapshot.value);
+        const toast = ref('');
+        let toastTimer = null;
+        const showToast = (msg) => { toast.value = msg; clearTimeout(toastTimer); toastTimer = setTimeout(() => { toast.value = ''; }, 2200); };
         const goToLiveDetail = (live) => {
           activeLive.value = { ...live };
           if (!activeLive.value.参加メンバー) activeLive.value.参加メンバー = [];
           liveDetailTab.value = 'overview';
-          flyerOpen.value = false; flyerText.value = ''; flyerResult.value = null;
+          liveSheet.value = ''; flyerText.value = ''; flyerFilled.value = [];
+          snap();
           currentPage.value = 'live_detail';
           activeSetlist.value = db.value.setlists
             .filter(s => s.ライブID === live.ID)
             .sort((a, b) => Number(a.順番) - Number(b.順番))
             .map(s => s.曲ID);
           nextTick(() => initSortable('setlist-container'));
+        };
+        const leaveLiveDetail = () => {
+          if (liveDirty.value && !confirm('保存していない変更があります。破棄して戻りますか?')) return;
+          currentPage.value = 'lives';
         };
         const goToSetlist = (live) => {
           goToLiveDetail(live);
@@ -1832,7 +1833,6 @@
         };
         const openLiveModal = () => {
           goToLiveDetail({ ID: '', 日にち: new Date().toISOString().slice(0, 10), ライブ場所: '', ライブタイトル: '', '制限時間(分)': 30, ステータス: '参加', 動画URL: '', 写真URL: '', 備考: '', 参加メンバー: db.value.members.filter(m => m.区分 === '正規').map(m => m.ID) });
-          flyerOpen.value = true;
         };
         const toggleLiveMember = (memberId) => {
           if (!activeLive.value.参加メンバー) activeLive.value.参加メンバー = [];
@@ -1841,32 +1841,91 @@
           else activeLive.value.参加メンバー.push(memberId);
           activeLive.value.参加メンバー = [...activeLive.value.参加メンバー];
         };
-        // 告知文の貼り付け → 自動入力
-        const flyerOpen = ref(false);
-        const flyerText = ref('');
-        const flyerResult = ref(null);
-        const FLYER_KEYS = ['日にち', 'ライブ場所', 'ライブタイトル', '入り時間', 'リハ時間', '出番時間', '制限時間(分)', '開場', '開演', '料金', '対バン'];
-        const readFlyer = () => {
-          const venues = [...new Set(db.value.lives.map(l => l.ライブ場所).filter(Boolean))];
-          const r = parseFlyer(flyerText.value, { band: 'noh', venues, today: new Date().toISOString().slice(0, 10) });
-          flyerResult.value = FLYER_KEYS.filter(k => r[k] != null && r[k] !== '').map(k => ({ k, v: r[k] }));
-        };
-        const applyFlyer = () => {
-          if (!flyerResult.value) return;
-          const live = activeLive.value;
-          flyerResult.value.forEach(({ k, v }) => {
-            if (k === '対バン') { const cur = actsOf(live).slice(); v.forEach(n => { if (!cur.includes(n)) cur.push(n); }); live.対バン = cur; }
-            else live[k] = v;
+
+        // 編集シート(項目ごとに下から開く)
+        const liveSheet = ref('');
+        const SHEET_TITLES = { flyer: '告知文から入力', date: '日にち・ステータス', venue: '会場', title: 'タイトル', time: 'nohの時間', door: '開場・開演・料金', acts: '対バン', memo: '備考', links: '動画・写真' };
+        const recentVenues = computed(() => {
+          const seen = [];
+          [...db.value.lives].sort((a, b) => String(b.日にち).localeCompare(String(a.日にち))).forEach(l => {
+            if (l.ライブ場所 && !seen.includes(l.ライブ場所) && seen.length < 12) seen.push(l.ライブ場所);
           });
-          // 都道府県は過去の同じ会場から引き継ぐ
+          return seen;
+        });
+        const PREFS = ['愛知', '岐阜', '三重', '静岡', '長野', '東京', '大阪', '京都'];
+        const pickVenue = (v) => {
+          activeLive.value.ライブ場所 = v;
+          const past = db.value.lives.find(l => l.ライブ場所 === v && l.都道府県);
+          if (past) activeLive.value.都道府県 = past.都道府県;
+        };
+        // 時間: "HH:MM-HH:MM" を時刻ピッカー2つで扱う
+        const addMin = (t, m) => { if (!t) return ''; const [h, mm] = t.split(':').map(Number); const x = h * 60 + mm + Number(m || 0); return `${String(Math.floor(x / 60) % 24).padStart(2, '0')}:${String(x % 60).padStart(2, '0')}`; };
+        const rangePart = (field, i) => (String(activeLive.value[field] || '').split('-')[i] || '').trim();
+        const setRangePart = (field, i, v) => {
+          const p = [rangePart(field, 0), rangePart(field, 1)]; p[i] = v;
+          activeLive.value[field] = p[0] || p[1] ? `${p[0]}-${p[1]}` : '';
+        };
+        const setShowStart = (v) => { activeLive.value.出番時間 = v ? `${v}-${addMin(v, activeLive.value['制限時間(分)'] || 30)}` : ''; };
+        const setShowLength = (m) => {
+          activeLive.value['制限時間(分)'] = m;
+          const st = rangePart('出番時間', 0);
+          if (st) activeLive.value.出番時間 = `${st}-${addMin(st, m)}`;
+        };
+        const fmtDateJa = (d) => {
+          if (!d) return '';
+          const x = new Date(d + 'T00:00:00');
+          return isNaN(x) ? d : `${x.getFullYear()}/${x.getMonth() + 1}/${x.getDate()}(${'日月火水木金土'[x.getDay()]})`;
+        };
+        const liveRows = computed(() => {
+          const l = activeLive.value || {};
+          const times = [l.出番時間 && `出番 ${l.出番時間}（${l['制限時間(分)'] || '?'}分）`, l.入り時間 && `入り ${l.入り時間}`, l.リハ時間 && `リハ ${l.リハ時間}`].filter(Boolean).join(' / ');
+          const door = [l.開場 && `OPEN ${l.開場}`, l.開演 && `START ${l.開演}`].filter(Boolean).join(' / ');
+          return [
+            { key: 'date', icon: 'fa-calendar-day', label: '日にち', value: l.日にち ? `${fmtDateJa(l.日にち)}・${l.ステータス || '参加'}` : '' },
+            { key: 'venue', icon: 'fa-map-marker-alt', label: '会場', value: [l.ライブ場所, l.都道府県].filter(Boolean).join('・') },
+            { key: 'title', icon: 'fa-ticket-alt', label: 'タイトル', value: l.ライブタイトル || '' },
+            { key: 'time', icon: 'fa-clock', label: 'nohの時間', value: times },
+            { key: 'door', icon: 'fa-door-open', label: '開場・料金', value: [door, l.料金].filter(Boolean).join(' / ') },
+            { key: 'acts', icon: 'fa-users', label: '対バン', value: actsOf(l).join(' / ') },
+            { key: 'memo', icon: 'fa-sticky-note', label: '備考', value: (l.備考 || '').split('\n').filter(Boolean).slice(0, 2).join(' ') },
+            { key: 'links', icon: 'fa-link', label: '動画・写真', value: [l.動画URL && '動画あり', l.写真URL && '写真あり'].filter(Boolean).join('・') },
+          ];
+        });
+
+        // 告知文の貼り付け → 自動入力
+        const flyerText = ref('');
+        const flyerFilled = ref([]);
+        const FLYER_KEYS = ['日にち', 'ライブ場所', 'ライブタイトル', '入り時間', 'リハ時間', '出番時間', '制限時間(分)', '開場', '開演', '料金', '対バン'];
+        const ROW_OF = { 日にち: 'date', ライブ場所: 'venue', ライブタイトル: 'title', 入り時間: 'time', リハ時間: 'time', 出番時間: 'time', '制限時間(分)': 'time', 開場: 'door', 開演: 'door', 料金: 'door', 対バン: 'acts' };
+        const applyFlyerTo = (live, text) => {
+          const venues = [...new Set(db.value.lives.map(l => l.ライブ場所).filter(Boolean))];
+          const r = parseFlyer(text, { band: 'noh', venues, today: new Date().toISOString().slice(0, 10) });
+          const keys = FLYER_KEYS.filter(k => r[k] != null && r[k] !== '');
+          keys.forEach(k => {
+            if (k === '対バン') { const cur = actsOf(live).slice(); r[k].forEach(n => { if (!cur.includes(n)) cur.push(n); }); live.対バン = cur; }
+            else live[k] = r[k];
+          });
           if (!live.都道府県 && live.ライブ場所) {
             const past = db.value.lives.find(l => l.ライブ場所 === live.ライブ場所 && l.都道府県);
             if (past) live.都道府県 = past.都道府県;
           }
           // 告知文そのものは備考に残す(タイテ・駐車場などの細かい案内用)
-          const t = flyerText.value.trim();
+          const t = text.trim();
           if (t && !(live.備考 || '').includes(t)) live.備考 = live.備考 ? `${live.備考}\n\n---告知文---\n${t}` : t;
-          flyerOpen.value = false;
+          return keys;
+        };
+        const runFlyer = () => {
+          const keys = applyFlyerTo(activeLive.value, flyerText.value);
+          flyerFilled.value = [...new Set(keys.map(k => ROW_OF[k]).filter(Boolean)), 'memo'];
+          liveSheet.value = '';
+          showToast(keys.length ? `${keys.length}項目を入れました(色付きの行)` : '読み取れませんでした。備考に入れました');
+        };
+        const pasteFlyer = async () => {
+          try {
+            const t = await navigator.clipboard.readText();
+            if (t && t.trim().length > 10) { flyerText.value = t; runFlyer(); return; }
+          } catch (e) { /* 読めないときは手で貼ってもらう */ }
+          liveSheet.value = 'flyer';
         };
         // 同じ日に登録済みのライブ(仮登録の二重化を防ぐ)
         const sameDayLives = computed(() => {
@@ -1875,9 +1934,10 @@
           return db.value.lives.filter(l => l.日にち === a.日にち && l.ID !== a.ID);
         });
         const switchToLive = (l) => {
-          const keep = flyerResult.value ? { text: flyerText.value, result: flyerResult.value } : null;
+          const text = flyerText.value;
+          const isNew = !activeLive.value.ID;
           goToLiveDetail(l);
-          if (keep) { flyerText.value = keep.text; flyerResult.value = keep.result; applyFlyer(); }
+          if (isNew && text.trim()) { flyerText.value = text; runFlyer(); }
         };
         const saveActiveLive = async () => {
           if (!activeLive.value) return;
@@ -1887,9 +1947,8 @@
             activeLive.value = res;
             const idx = db.value.lives.findIndex(l => l.ID === res.ID);
             if (idx >= 0) db.value.lives.splice(idx, 1, res); else db.value.lives.push(res);
-            // 保存成功後、一覧画面に移動
-            alert('ライブ情報を保存しました');
-            currentPage.value = 'lives';
+            snap(); flyerFilled.value = [];
+            showToast('保存しました');
           } catch (err) { alert(err.message); }
           finally { saving.value = false; }
         };
@@ -2297,7 +2356,8 @@
           studioYear, studioMonth, changeStudioMonth, getStudiosInExactMonth, uniqueStudioVenues,
           showStudioModal, editStudio, studioUrls, urlList, openStudioModal, saveStudio, toggleStudioMember,
           activeLive, liveDetailTab, goToLiveDetail, goToSetlist, openLiveModal, saveActiveLive, toggleLiveMember,
-          flyerOpen, flyerText, flyerResult, readFlyer, applyFlyer, sameDayLives, switchToLive,
+          flyerText, flyerFilled, runFlyer, pasteFlyer, sameDayLives, switchToLive, liveDirty, leaveLiveDetail, toast,
+          liveSheet, SHEET_TITLES, recentVenues, PREFS, pickVenue, rangePart, setRangePart, setShowStart, setShowLength, liveRows, fmtDateJa,
           showSetlistModal, openSetlistModal, 
           activeSetlist, showSongSelector, getSongName, getSongTime, formatTimeStr, songNumberOf,
           currentSetlistTotalTime, currentSetlistTotalTimeNum, addMCToSetlist, addToSetlist, removeFromSetlist, saveSetlist,
