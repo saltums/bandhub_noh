@@ -60,6 +60,8 @@
             <p class="text-2xl font-black mt-1 leading-tight">{{ fmtDateJa(nextLive.日にち) }}<span v-if="nextLive.ステータス === '検討中'" class="ml-2 text-xs bg-yellow-400 text-yellow-900 px-2 py-0.5 rounded-full align-middle">検討中</span></p>
             <p class="text-sm font-bold truncate"><i class="fas fa-map-marker-alt mr-1 opacity-80"></i>{{ nextLive.ライブ場所 || '会場未定' }}</p>
             <p class="text-[11px] opacity-90 truncate">{{ nextLive.ライブタイトル || 'タイトル未定' }}</p>
+            <p v-if="(nextLive.参加メンバー || []).some(isSupport)" class="text-[11px] font-bold mt-0.5 truncate">
+              <span class="bg-violet-500/80 px-1.5 py-0.5 rounded mr-1">サポート</span>{{ sortMembers(nextLive.参加メンバー).filter(isSupport).map(id => getMemberName(id, true)).join('・') }}</p>
             <div class="grid grid-cols-3 gap-1.5 mt-3 text-center">
               <div v-for="t in [['入り', nextLive.入り時間], ['リハ', nextLive.リハ時間], ['出番', nextLive.出番時間]]" :key="t[0]" class="bg-white/15 rounded-xl py-1.5">
                 <p class="text-[10px] opacity-80 leading-none mb-1">{{ t[0] }}</p>
@@ -246,9 +248,10 @@
                   </div>
                   <!-- 参加メンバー表示 -->
                   <div class="mt-3 flex flex-wrap gap-1" v-if="live.参加メンバー && live.参加メンバー.length > 0">
-                    <span v-for="mid in live.参加メンバー" :key="mid"
-                      class="text-[9px] font-bold bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded border border-gray-200">
-                      {{ getMemberName(mid, true) }}
+                    <span v-for="mid in sortMembers(live.参加メンバー)" :key="mid"
+                      class="text-[9px] font-bold px-1.5 py-0.5 rounded border"
+                      :class="isSupport(mid) ? 'bg-violet-50 text-violet-600 border-violet-200 border-dashed' : 'bg-gray-100 text-gray-600 border-gray-200'">
+                      <span v-if="isSupport(mid)" class="opacity-70">サポ </span>{{ getMemberName(mid, true) }}
                     </span>
                   </div>
                   <!-- セトリへのショートカット (常に表示に改善) -->
@@ -342,14 +345,19 @@
 
               <!-- 参加メンバー(タップで切り替え) -->
               <div class="bg-white rounded-2xl shadow-sm border border-gray-200 px-3 py-2">
-                <p class="text-[10px] font-bold text-gray-400 mb-1.5">参加メンバー(タップで切り替え)</p>
-                <div class="grid grid-cols-5 gap-1.5">
-                  <button v-for="m in db.members" :key="m.ID" @click="toggleLiveMember(m.ID)"
-                    class="rounded-xl py-1 text-center transition active:scale-95 border"
-                    :class="activeLive.参加メンバー && activeLive.参加メンバー.includes(m.ID) ? 'bg-teal-500 border-teal-500 text-white' : 'bg-gray-50 border-gray-200 text-gray-400'">
-                    <span class="block text-[11px] font-black leading-tight truncate px-0.5">{{ m.名前 }}</span>
-                    <span class="block text-[9px] opacity-80 leading-tight">{{ m.パート }}</span>
-                  </button>
+                <p class="text-[10px] font-bold text-gray-400 mb-1">参加メンバー(タップで切り替え)</p>
+                <div v-for="grp in memberGroups" :key="grp.key" class="flex items-center gap-1.5 mb-1">
+                  <span class="w-9 shrink-0 text-[9px] font-black leading-tight" :class="grp.key === 'support' ? 'text-violet-500' : 'text-teal-600'">{{ grp.label }}</span>
+                  <div class="grid gap-1 flex-grow" :class="grp.key === 'support' ? 'grid-cols-5' : 'grid-cols-4'">
+                    <button v-for="m in grp.list" :key="m.ID" @click="toggleLiveMember(m.ID)"
+                      class="rounded-xl py-1 text-center transition active:scale-95 border"
+                      :class="activeLive.参加メンバー && activeLive.参加メンバー.includes(m.ID)
+                        ? (grp.key === 'support' ? 'bg-violet-500 border-violet-500 text-white' : 'bg-teal-500 border-teal-500 text-white')
+                        : (grp.key === 'support' ? 'bg-white border-violet-200 border-dashed text-gray-400' : 'bg-gray-50 border-gray-200 text-gray-400')">
+                      <span class="block text-[11px] font-black leading-tight truncate px-0.5">{{ m.名前 }}</span>
+                      <span class="block text-[9px] opacity-80 leading-tight">{{ m.パート }}</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -659,7 +667,7 @@
                 </p>
                 <div class="bg-gray-50 border border-gray-100 p-2 rounded text-[11px] text-gray-600 mb-2">
                   <span class="font-bold text-gray-500 mr-1">参加メンバー:</span>
-                  <span v-if="st.参加メンバー && st.参加メンバー.length > 0">{{ st.参加メンバー.map(mid => getMemberName(mid, true)).join(', ') }}</span>
+                  <span v-if="st.参加メンバー && st.参加メンバー.length > 0">{{ memberLine(st.参加メンバー) }}</span>
                   <span v-else class="text-gray-400">登録なし</span>
                 </div>
                 <p v-if="st.備考" class="text-xs text-gray-500 mt-1 bg-gray-50 p-2 rounded whitespace-pre-line">{{ st.備考 }}</p>
@@ -731,12 +739,17 @@
             </div>
             <div>
               <label class="text-xs font-bold text-gray-500 block mb-2 border-b pb-1">参加メンバー</label>
-              <div class="grid grid-cols-5 gap-1.5">
-                <button v-for="m in db.members" :key="m.ID" @click="toggleStudioMember(m.ID)"
-                  class="rounded-xl py-1.5 text-center border transition active:scale-95"
-                  :class="editStudio.参加メンバー && editStudio.参加メンバー.includes(m.ID) ? 'bg-orange-500 border-orange-500 text-white' : 'bg-gray-50 border-gray-200 text-gray-400'">
-                  <span class="block text-[11px] font-black truncate px-0.5">{{ m.名前 }}</span>
-                </button>
+              <div v-for="grp in memberGroups" :key="grp.key" class="flex items-center gap-1.5 mb-1.5">
+                <span class="w-9 shrink-0 text-[9px] font-black leading-tight" :class="grp.key === 'support' ? 'text-violet-500' : 'text-orange-500'">{{ grp.label }}</span>
+                <div class="grid gap-1 flex-grow" :class="grp.key === 'support' ? 'grid-cols-5' : 'grid-cols-4'">
+                  <button v-for="m in grp.list" :key="m.ID" @click="toggleStudioMember(m.ID)"
+                    class="rounded-xl py-1.5 text-center border transition active:scale-95"
+                    :class="editStudio.参加メンバー && editStudio.参加メンバー.includes(m.ID)
+                      ? (grp.key === 'support' ? 'bg-violet-500 border-violet-500 text-white' : 'bg-orange-500 border-orange-500 text-white')
+                      : (grp.key === 'support' ? 'bg-white border-violet-200 border-dashed text-gray-400' : 'bg-gray-50 border-gray-200 text-gray-400')">
+                    <span class="block text-[11px] font-black truncate px-0.5">{{ m.名前 }}</span>
+                  </button>
+                </div>
               </div>
             </div>
             <div>
@@ -1293,9 +1306,9 @@
 
       <!-- AIアシスタント (フローティング) -->
       <div v-show="!showPlotEditor && currentPage === 'home'" class="fixed inset-x-0 bottom-[84px] max-w-md mx-auto z-40 pointer-events-none">
-        <a v-if="currentPage === 'home'" href="game.html" aria-label="ミニゲーム OGURA the DIVER"
+        <a v-if="currentPage === 'home'" href="games.html" aria-label="ミニゲーム"
           class="game-fab pointer-events-auto float-left ml-4 h-12 pl-3 pr-4 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-xl flex items-center gap-2 active:scale-95 transition">
-          <i class="fas fa-gamepad text-lg"></i><span class="text-xs font-black leading-tight">ミニゲーム<br><span class="font-bold opacity-90">潜れ!</span></span>
+          <i class="fas fa-gamepad text-lg"></i><span class="text-xs font-black leading-tight">ミニゲーム<br><span class="font-bold opacity-90">あそぶ!</span></span>
         </a>
       </div>
       <transition name="fade">
@@ -1885,6 +1898,22 @@
         // 曲別動画
         const newSongVideo = ref({ メンバーID: '', 動画URL: '' });
         const getSongVideos = (songId) => db.value.songVideos.filter(v => v.曲ID === songId);
+        // 正規メンバーとサポートの区別
+        const isSupport = (id) => db.value.members.find(m => m.ID === id)?.区分 === 'サポート';
+        const memberGroups = computed(() => [
+          { key: 'regular', label: 'メンバー', list: db.value.members.filter(m => m.区分 !== 'サポート') },
+          { key: 'support', label: 'サポート', list: db.value.members.filter(m => m.区分 === 'サポート') },
+        ].filter(g => g.list.length));
+        const sortMembers = (ids) => {
+          const order = db.value.members.map(m => m.ID);
+          return [...(ids || [])].filter(id => order.includes(id)).sort((a, b) => (isSupport(a) - isSupport(b)) || (order.indexOf(a) - order.indexOf(b)));
+        };
+        const memberLine = (ids) => {
+          const s = sortMembers(ids);
+          const reg = s.filter(id => !isSupport(id)).map(id => getMemberName(id, true));
+          const sup = s.filter(isSupport).map(id => getMemberName(id, true));
+          return [reg.join('・'), sup.length ? `サポート: ${sup.join('・')}` : ''].filter(Boolean).join(' / ');
+        };
         const getMemberName = (memId, short = false) => {
           const m = db.value.members.find(x => x.ID === memId);
           if (!m) return '';
@@ -2439,8 +2468,7 @@
           if (t.length) L.push('', ...t);
           const acts = actsOf(l);
           if (acts.length) L.push('', `🤝 対バン: ${acts.join(' / ')}`);
-          const mem = (l.参加メンバー || []).map(id => getMemberName(id, true)).filter(Boolean);
-          if (mem.length) L.push(`👥 ${mem.join('・')}`);
+          if ((l.参加メンバー || []).length) L.push(`👥 ${memberLine(l.参加メンバー)}`);
           const sl = db.value.setlists.filter(s => s.ライブID === l.ID).sort((a, b) => Number(a.順番) - Number(b.順番));
           if (sl.length) {
             let n = 0;
@@ -2496,6 +2524,7 @@
           currentPage, loading, saving, goHome, menuOrder, clickMenu, db,
           songSearchQuery, filteredSongs, showSongModal, editSong, openSongModal, saveSong,
           newSongVideo, getSongVideos, getMemberName, addSongVideo, removeSongVideo,
+          isSupport, memberGroups, sortMembers, memberLine,
           nextLive, nextStudio, laterItems, daysLabel, fmtDateShort, setlistCount, navTabs, moreTiles, clickMore,
           adminUnlocked, adminPinHash, pinInput, pinFirst, pinError, pinKey, studioView, studioList,
           liveViewMode, calendarYear, sortedLivesDesc, formatDate, liveSearch, liveEra, liveYear, liveYears, actsOf, actInput, addAct, removeAct,
