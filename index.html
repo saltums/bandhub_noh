@@ -123,41 +123,55 @@
         </div>
 
         <!-- 曲管理 -->
-        <div v-else-if="currentPage === 'songs'" key="songs" class="bg-gray-50 h-full">
-          <div class="p-4 bg-white flex justify-between items-center sticky top-0 z-10 shadow-sm border-b">
-            <h2 class="font-bold text-gray-700"><i class="fas fa-music mr-2 text-indigo-500"></i> 曲</h2>
-            <button @click="openSongModal(null)"
-              class="bg-indigo-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-md active:bg-indigo-700">
-              <i class="fas fa-plus mr-1"></i> 曲を追加
-            </button>
+        <div v-else-if="currentPage === 'songs'" key="songs" class="bg-gray-50 min-h-full pb-24">
+          <div class="bg-white border-b px-3.5 pt-2.5 pb-2 sticky top-0 z-10">
+            <div class="flex items-center justify-between">
+              <h2 class="font-bold text-gray-700"><i class="fas fa-music mr-2 text-indigo-500"></i>曲 <span class="text-xs text-gray-400">{{ songRows.main.length }}曲</span></h2>
+              <div class="flex items-center gap-1.5">
+                <button @click="songSearchOpen = !songSearchOpen; if (!songSearchOpen) songSearchQuery = ''" aria-label="曲名で検索"
+                  class="w-8 h-8 rounded-full flex items-center justify-center" :class="songSearchOpen ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-500'"><i class="fas fa-search text-sm"></i></button>
+                <button @click="openSongModal(null)" class="bg-indigo-600 text-white px-3.5 py-1.5 rounded-full text-sm font-bold shadow active:bg-indigo-700"><i class="fas fa-plus mr-1"></i>曲を追加</button>
+              </div>
+            </div>
+            <input v-if="songSearchOpen" type="search" v-model="songSearchQuery" placeholder="曲名で検索"
+              class="w-full mt-2 bg-gray-50 border border-gray-300 rounded-lg px-3 py-1.5 text-sm">
+            <div class="flex gap-1.5 mt-2">
+              <button v-for="o in [['count', 'よくやる順'], ['recent', '最近やった順'], ['name', '名前順']]" :key="o[0]" @click="songSort = o[0]"
+                class="flex-1 py-1.5 rounded-lg text-xs font-black transition" :class="songSort === o[0] ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-500'">{{ o[1] }}</button>
+            </div>
           </div>
-          <div class="p-4 space-y-3 pb-24">
-            <div class="relative">
-              <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
-              <input type="text" v-model="songSearchQuery" placeholder="曲名で検索"
-                class="w-full bg-white border border-gray-300 rounded-xl pl-10 pr-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+
+          <div class="mx-2.5 mt-2 bg-white border border-gray-200 rounded-2xl overflow-hidden">
+            <button v-for="r in songRows.main" :key="r.song.ID" @click="openSongModal(r.song)"
+              class="w-full flex items-center gap-2.5 px-3 py-1.5 border-b border-gray-100 last:border-b-0 text-left active:bg-indigo-50 min-h-[47px]">
+              <span class="flex-grow min-w-0">
+                <span class="flex items-center gap-1.5">
+                  <span class="text-[15px] font-black text-gray-800 truncate">{{ r.song.曲名 }}</span>
+                  <span v-if="r.inNext" class="shrink-0 text-[9px] font-black bg-teal-100 text-teal-700 px-1.5 rounded-full">次のセトリ</span>
+                  <a v-if="r.song.リンクURL" :href="r.song.リンクURL" target="_blank" @click.stop class="shrink-0 text-blue-500 text-xs"><i class="fas fa-link"></i></a>
+                </span>
+                <span v-if="r.last" class="block text-[11px] text-gray-400 truncate">最後: {{ fmtMD(r.last.日にち) }} {{ r.last.ライブ場所 || '' }}</span>
+                <span v-else-if="r.count" class="block text-[11px] text-gray-400">最後にやったライブの記録なし</span>
+                <span v-else class="block text-[11px] font-bold text-amber-500">まだライブでやっていない</span>
+              </span>
+              <span class="w-10 text-right text-[13px] font-bold text-gray-600 tabular-nums">{{ r.len }}</span>
+              <span class="w-9 text-center leading-none" :class="r.count ? 'text-indigo-600' : 'text-gray-300'">
+                <span class="block text-[15px] font-black">{{ r.count }}</span><span class="block text-[9px] font-bold text-gray-400 mt-0.5">回</span></span>
+            </button>
+            <p v-if="!songRows.main.length" class="text-center py-8 text-gray-400 text-sm">見つかりません</p>
+          </div>
+
+          <div v-if="songRows.other.length" class="mx-2.5 mt-2 bg-white border border-dashed border-gray-300 rounded-xl">
+            <button @click="songOtherOpen = !songOtherOpen" class="w-full flex items-center justify-between px-3 py-2 text-[11px] text-gray-500">
+              <span>その他(リンクだけ): {{ songRows.other.map(r => r.song.曲名).join(' / ') }}</span>
+              <i class="fas" :class="songOtherOpen ? 'fa-chevron-up' : 'fa-chevron-down'"></i></button>
+            <div v-if="songOtherOpen">
+              <button v-for="r in songRows.other" :key="r.song.ID" @click="openSongModal(r.song)"
+                class="w-full flex items-center justify-between px-3 py-2 border-t border-gray-100 text-left text-sm font-bold text-gray-700">
+                {{ r.song.曲名 }}
+                <a v-if="r.song.リンクURL" :href="r.song.リンクURL" target="_blank" @click.stop class="text-blue-500 text-xs"><i class="fas fa-link mr-1"></i>開く</a>
+              </button>
             </div>
-            <div v-for="song in filteredSongs" :key="song.ID" @click="openSongModal(song)"
-              class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between active:bg-gray-50 transition cursor-pointer">
-              <div>
-                <h3 class="font-bold text-gray-800 text-lg leading-tight">{{ song.曲名 }}</h3>
-                <p class="text-xs text-gray-500 mt-1">
-                  <i class="far fa-clock text-indigo-400 mr-1"></i>{{ song['時間(分)'] }}分{{ song['時間(秒)'] ? song['時間(秒)'] + '秒' : '' }}
-                  <span v-if="song.BPM" class="mx-1 text-gray-300">|</span>
-                  <span v-if="song.BPM" class="font-mono text-indigo-600 font-bold mr-1">BPM:{{ song.BPM }}</span>
-                  <span class="mx-1 text-gray-300">|</span>
-                  <i class="fas fa-play text-pink-400 mr-1"></i>{{ song.演奏回数 }}回
-                </p>
-              </div>
-              <div class="flex items-center space-x-3">
-                <a v-if="song.リンクURL" :href="song.リンクURL" target="_blank" @click.stop
-                  class="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100">
-                  <i class="fas fa-link"></i>
-                </a>
-                <i class="fas fa-chevron-right text-gray-300"></i>
-              </div>
-            </div>
-            <div v-if="filteredSongs.length === 0" class="text-center py-10 text-gray-400">見つかりません</div>
           </div>
         </div>
 
@@ -1735,6 +1749,37 @@
 
         // 曲管理
         const songSearchQuery = ref('');
+        const songSearchOpen = ref(false);
+        const songOtherOpen = ref(false);
+        const songSort = ref('count');
+        const fmtMD = (ds) => { const x = new Date(ds + 'T00:00:00'); return isNaN(x) ? (ds || '') : `${x.getMonth() + 1}/${x.getDate()}`; };
+        // 曲一覧: 演奏回数・最後にやったライブ・次のセトリ入り
+        const songRows = computed(() => {
+          const today = todayStr();
+          const liveById = new Map(db.value.lives.map(l => [l.ID, l]));
+          const lastBySong = new Map();
+          db.value.setlists.forEach(sl => {
+            const l = liveById.get(sl.ライブID);
+            if (!l || !l.日にち || l.日にち >= today || l.ステータス === '中止') return;
+            const cur = lastBySong.get(sl.曲ID);
+            if (!cur || l.日にち > cur.日にち) lastBySong.set(sl.曲ID, l);
+          });
+          const nl = nextLive.value;
+          const nextIds = new Set(nl ? db.value.setlists.filter(sl => sl.ライブID === nl.ID).map(sl => sl.曲ID) : []);
+          const q = songSearchQuery.value.trim().toLowerCase();
+          const rows = db.value.songs.filter(sg => !q || String(sg.曲名 || '').toLowerCase().includes(q)).map(sg => {
+            const m = Number(sg['時間(分)']) || 0, sec = Number(sg['時間(秒)']) || 0;
+            return { song: sg, len: `${m}:${String(sec).padStart(2, '0')}`, noLen: !m && !sec, count: Number(sg.演奏回数) || 0, last: lastBySong.get(sg.ID) || null, inNext: nextIds.has(sg.ID) };
+          });
+          const byName = (a, b) => String(a.song.曲名).localeCompare(String(b.song.曲名), 'ja');
+          const sorters = {
+            count: (a, b) => (b.count - a.count) || byName(a, b),
+            recent: (a, b) => String(b.last?.日にち || '').localeCompare(String(a.last?.日にち || '')) || (b.count - a.count) || byName(a, b),
+            name: byName,
+          };
+          const main = rows.filter(r => !r.noLen).sort(sorters[songSort.value]);
+          return { main, other: rows.filter(r => r.noLen).sort(byName) };
+        });
         const filteredSongs = computed(() => {
           if (!songSearchQuery.value) return db.value.songs;
           const q = songSearchQuery.value.toLowerCase();
@@ -2522,7 +2567,7 @@
 
         return {
           currentPage, loading, saving, goHome, menuOrder, clickMenu, db,
-          songSearchQuery, filteredSongs, showSongModal, editSong, openSongModal, saveSong,
+          songSearchQuery, filteredSongs, songSearchOpen, songOtherOpen, songSort, songRows, fmtMD, showSongModal, editSong, openSongModal, saveSong,
           newSongVideo, getSongVideos, getMemberName, addSongVideo, removeSongVideo,
           isSupport, memberGroups, sortMembers, memberLine,
           nextLive, nextStudio, laterItems, daysLabel, fmtDateShort, setlistCount, navTabs, moreTiles, clickMore,
