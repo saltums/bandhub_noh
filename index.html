@@ -40,6 +40,9 @@
       </h1>
       <div class="flex items-center gap-3">
         <div v-if="loading" class="text-xs text-indigo-200"><i class="fas fa-sync fa-spin"></i></div>
+        <button @click="showMePicker = true" aria-label="自分を選ぶ"
+          class="flex items-center gap-1 bg-white/15 active:bg-white/25 rounded-full px-3 py-1.5 text-sm font-bold max-w-[7.5rem]">
+          <i class="fas fa-user-circle"></i><span class="truncate">{{ me ? getMemberName(me, true) : 'だれ?' }}</span></button>
         <button @click="aiOpen = true" aria-label="AIに聞く"
           class="flex items-center gap-1.5 bg-white/15 active:bg-white/25 rounded-full pl-3 pr-3.5 py-1.5 text-sm font-bold">
           <i class="fas fa-wand-magic-sparkles"></i>AI</button>
@@ -51,6 +54,19 @@
 
         <!-- ホーム画面: 次の予定 -->
         <div v-if="currentPage === 'home'" key="home" class="p-3 pb-36 space-y-2.5 bg-gray-50 min-h-full">
+          <button v-if="me && unansweredLives.length" @click="goToLiveDetail(unansweredLives[0])"
+            class="w-full bg-amber-50 border border-amber-300 rounded-2xl px-3 py-2.5 flex items-center gap-2.5 text-left active:bg-amber-100">
+            <i class="fas fa-hand-paper text-amber-500 text-lg"></i>
+            <span class="flex-grow text-sm font-black text-amber-800">出欠の返事がまだのライブが{{ unansweredLives.length }}件</span>
+            <span class="text-xs font-bold text-amber-700">答える <i class="fas fa-chevron-right text-[10px]"></i></span>
+          </button>
+          <button v-if="!me && db.members.length" @click="showMePicker = true"
+            class="w-full bg-indigo-50 border border-indigo-200 rounded-2xl px-3 py-2.5 flex items-center gap-2.5 text-left active:bg-indigo-100">
+            <i class="fas fa-user-circle text-indigo-500 text-lg"></i>
+            <span class="flex-grow text-sm font-black text-indigo-800">最初に自分の名前を選んでください</span>
+            <i class="fas fa-chevron-right text-indigo-400 text-xs"></i>
+          </button>
+
           <div v-if="nextLive" @click="goToLiveDetail(nextLive)"
             class="bg-gradient-to-br from-teal-500 to-emerald-600 text-white rounded-3xl p-4 shadow-lg active:scale-[0.98] transition cursor-pointer">
             <div class="flex justify-between items-center text-xs font-bold">
@@ -68,7 +84,13 @@
                 <p class="font-black leading-none" :class="t[1] && t[1].length > 5 ? 'text-xs' : 'text-base'">{{ t[1] || '未定' }}</p>
               </div>
             </div>
-            <div class="flex gap-2 mt-3">
+            <div v-if="me" class="flex items-center gap-1.5 mt-3" @click.stop>
+              <span class="text-[11px] font-bold opacity-90 mr-0.5">出欠</span>
+              <button v-for="o in ANSWERS" :key="o.key" @click.stop="answer(nextLive, o.key)"
+                class="flex-1 py-1.5 rounded-xl text-sm font-black transition active:scale-95"
+                :class="myAnswer(nextLive) === o.key ? 'bg-white text-teal-700' : 'bg-white/15 text-white'">{{ o.mark }} {{ o.label }}</button>
+            </div>
+            <div class="flex gap-2 mt-2">
               <button @click.stop="goToSetlist(nextLive)" class="flex-1 bg-white text-teal-700 font-black text-sm py-2.5 rounded-xl active:scale-95">
                 <i class="fas fa-list-ol mr-1"></i>{{ setlistCount(nextLive.ID) ? `セトリ(${setlistCount(nextLive.ID)}曲)` : 'セトリを作る' }}</button>
               <button @click.stop="shareOnLine(nextLive, 'live_detail')" aria-label="LINEで共有" class="w-12 bg-[#06C755] rounded-xl active:scale-95"><i class="fab fa-line text-2xl"></i></button>
@@ -260,6 +282,14 @@
                       <i class="fas fa-camera mr-1"></i>写真
                     </a>
                   </div>
+                  <p v-if="String(live.日にち || '') >= todayStr()" class="text-[11px] font-bold mt-2 flex items-center gap-2">
+                    <span class="text-gray-400">出欠</span>
+                    <span class="text-teal-600">○{{ answerSummary(live).ok }}</span>
+                    <span class="text-yellow-600">△{{ answerSummary(live).maybe }}</span>
+                    <span class="text-red-500">×{{ answerSummary(live).ng }}</span>
+                    <span class="text-gray-400">未{{ answerSummary(live).none }}</span>
+                    <span v-if="me && targetsOf(live).includes(me)" class="ml-auto px-2 py-0.5 rounded-full border" :class="answerStyle(myAnswer(live))">あなた {{ answerMark(myAnswer(live)) }}</span>
+                  </p>
                   <!-- 参加メンバー表示 -->
                   <div class="mt-3 flex flex-wrap gap-1" v-if="live.参加メンバー && live.参加メンバー.length > 0">
                     <span v-for="mid in sortMembers(live.参加メンバー)" :key="mid"
@@ -331,6 +361,31 @@
                 <span><span class="block font-black text-base">告知文を貼り付けて自動入力</span>
                   <span class="block text-[11px] opacity-90">主催の告知文をコピーしてからタップ</span></span>
               </button>
+
+              <!-- 出欠 -->
+              <div v-if="activeLive.ID" class="bg-white rounded-2xl shadow-sm border border-gray-200 px-3 py-2">
+                <div class="flex items-center justify-between mb-1.5">
+                  <p class="text-xs font-black text-gray-600"><i class="fas fa-hand-paper mr-1 text-teal-500"></i>出欠</p>
+                  <p class="text-[11px] font-bold text-gray-400">
+                    <span class="text-teal-600">○{{ answerSummary(activeLive).ok }}</span>
+                    <span class="text-yellow-600 ml-1.5">△{{ answerSummary(activeLive).maybe }}</span>
+                    <span class="text-red-500 ml-1.5">×{{ answerSummary(activeLive).ng }}</span>
+                    <span class="ml-1.5">未回答{{ answerSummary(activeLive).none }}</span></p>
+                </div>
+                <div v-if="me" class="grid grid-cols-3 gap-1.5 mb-1.5">
+                  <button v-for="o in ANSWERS" :key="o.key" @click="answer(activeLive, o.key)"
+                    class="py-2 rounded-xl font-black text-sm transition active:scale-95 border-2"
+                    :class="myAnswer(activeLive) === o.key ? o.on : 'bg-white border-gray-200 text-gray-500'">{{ o.mark }} {{ o.label }}</button>
+                </div>
+                <button v-else @click="showMePicker = true" class="w-full mb-2 py-2.5 rounded-xl bg-teal-600 text-white font-black text-sm active:scale-95">
+                  自分の名前を選んで返事する</button>
+                <div class="flex flex-wrap gap-1">
+                  <span v-for="id in targetsOf(activeLive)" :key="id"
+                    class="text-[11px] font-bold px-2 py-0.5 rounded-full border"
+                    :class="[answerStyle(attendanceOf(activeLive.ID)[id]), isSupport(id) ? 'border-dashed' : '', id === me ? 'ring-2 ring-indigo-300' : '']">
+                    {{ answerMark(attendanceOf(activeLive.ID)[id]) }} {{ getMemberName(id, true) }}</span>
+                </div>
+              </div>
 
               <!-- 同じ日に登録済みのライブ -->
               <div v-for="l in sameDayLives" :key="l.ID" class="bg-yellow-50 border border-yellow-300 rounded-2xl px-3 py-2 flex items-center gap-3">
@@ -1311,6 +1366,25 @@
         </div>
       </transition>
 
+      <!-- 自分を選ぶ -->
+      <transition name="fade">
+        <div v-if="showMePicker" class="fixed inset-0 z-[70] bg-black/50 flex items-end" @click.self="showMePicker = false">
+          <div class="w-full max-w-md mx-auto bg-white rounded-t-3xl p-5 pb-8">
+            <p class="font-black text-lg text-gray-800">あなたはだれ?</p>
+            <p class="text-xs text-gray-500 mb-4">このスマホで1回選べばOK。出欠の返事に使います</p>
+            <div v-for="grp in memberGroups" :key="grp.key" class="mb-3">
+              <p class="text-[11px] font-black mb-1.5" :class="grp.key === 'support' ? 'text-violet-500' : 'text-teal-600'">{{ grp.label }}</p>
+              <div class="grid grid-cols-3 gap-2">
+                <button v-for="m in grp.list" :key="m.ID" @click="setMe(m.ID)"
+                  class="py-3 rounded-2xl border-2 font-black transition active:scale-95"
+                  :class="me === m.ID ? 'bg-indigo-600 border-indigo-600 text-white' : (grp.key === 'support' ? 'border-dashed border-violet-200 text-gray-700' : 'border-gray-200 text-gray-700')">
+                  {{ m.名前 }}<span class="block text-[10px] font-bold opacity-70">{{ m.パート }}</span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </transition>
+
       <!-- トースト -->
       <transition name="fade">
         <div v-if="toast" class="fixed bottom-[140px] inset-x-0 max-w-md mx-auto px-6 z-[70] pointer-events-none">
@@ -1549,7 +1623,7 @@
 
         const db = ref({
           songs: [], lives: [], setlists: [], guests: [], stagePlots: [],
-          files: [], sns: [], studios: [], members: [], songVideos: [], knowledge: []
+          files: [], sns: [], studios: [], members: [], songVideos: [], knowledge: [], attendance: []
         });
 
         // --- API 通信 (GitHub Pages対応) ---
@@ -1583,7 +1657,7 @@
         const callApi = async (action, data = null) => {
           switch (action) {
             case 'getAllData': {
-              const tables = ['songs', 'lives', 'setlists', 'guests', 'stagePlots', 'files', 'studios', 'members', 'songVideos', 'ai_knowledge'];
+              const tables = ['songs', 'lives', 'setlists', 'guests', 'stagePlots', 'files', 'studios', 'members', 'songVideos', 'ai_knowledge', 'attendance'];
               const rows = await Promise.all(tables.map(t => sb(`${t}?select=*&limit=5000`)));
               const out = {};
               tables.forEach((t, i) => { out[t] = rows[i] || []; });
@@ -1621,7 +1695,7 @@
               songs: data.songs || [], lives: data.lives || [], setlists: data.setlists || [],
               guests: data.guests || [], stagePlots: data.stagePlots || [], files: data.files || [],
               sns: db.value.sns || [], studios: data.studios || [], members: data.members || [],
-              songVideos: data.songVideos || [], knowledge: data.ai_knowledge || []
+              songVideos: data.songVideos || [], knowledge: data.ai_knowledge || [], attendance: data.attendance || []
             };
           } catch (err) {
             alert(err.message);
@@ -1943,6 +2017,46 @@
         // 曲別動画
         const newSongVideo = ref({ メンバーID: '', 動画URL: '' });
         const getSongVideos = (songId) => db.value.songVideos.filter(v => v.曲ID === songId);
+        // --- 出欠 ---
+        const me = ref(localStorage.getItem('bandhub_me') || '');
+        const showMePicker = ref(false);
+        const setMe = (id) => { me.value = id; try { localStorage.setItem('bandhub_me', id); } catch (e) {} showMePicker.value = false; showToast(`${getMemberName(id, true)}さんとして使います`); };
+        const ANSWERS = [
+          { key: 'ok', mark: '○', label: '出れる', on: 'bg-teal-500 border-teal-500 text-white' },
+          { key: 'maybe', mark: '△', label: '未定', on: 'bg-yellow-400 border-yellow-400 text-yellow-900' },
+          { key: 'ng', mark: '×', label: '無理', on: 'bg-red-500 border-red-500 text-white' },
+        ];
+        const answerMark = (st) => ({ ok: '○', maybe: '△', ng: '×' }[st] || '−');
+        const answerStyle = (st) => ({ ok: 'bg-teal-50 text-teal-700 border-teal-200', maybe: 'bg-yellow-50 text-yellow-700 border-yellow-300', ng: 'bg-red-50 text-red-600 border-red-200' }[st] || 'bg-gray-50 text-gray-400 border-gray-200');
+        const attendanceOf = (liveId) => Object.fromEntries((db.value.attendance || []).filter(a => a.live_id === liveId).map(a => [a.member_id, a.status]));
+        // 返事してほしい人: 正規メンバー全員 + 参加予定のサポート + すでに返事した人
+        const targetsOf = (live) => {
+          const ans = attendanceOf(live.ID);
+          const ids = new Set([
+            ...db.value.members.filter(m => m.区分 !== 'サポート').map(m => m.ID),
+            ...(live.参加メンバー || []), ...Object.keys(ans)]);
+          return db.value.members.map(m => m.ID).filter(id => ids.has(id))
+            .sort((a, b) => (isSupport(a) - isSupport(b)));
+        };
+        const answerSummary = (live) => {
+          const ans = attendanceOf(live.ID); const c = { ok: 0, maybe: 0, ng: 0, none: 0 };
+          targetsOf(live).forEach(id => { c[ans[id] || 'none']++; });
+          return c;
+        };
+        const myAnswer = (live) => me.value ? attendanceOf(live.ID)[me.value] || '' : '';
+        const unansweredLives = computed(() => me.value
+          ? upcomingLives.value.filter(l => targetsOf(l).includes(me.value) && !attendanceOf(l.ID)[me.value]) : []);
+        const answer = async (live, status) => {
+          if (!me.value) { showMePicker.value = true; return; }
+          const row = { live_id: live.ID, member_id: me.value, status, updated_at: new Date().toISOString() };
+          const list = db.value.attendance.filter(a => !(a.live_id === live.ID && a.member_id === me.value));
+          db.value.attendance = [...list, row];
+          try {
+            await sb('attendance?on_conflict=live_id,member_id', { method: 'POST', body: row, prefer: 'resolution=merge-duplicates,return=minimal' });
+            showToast(`${fmtDateShort(live.日にち)} は「${answerMark(status)} ${ANSWERS.find(a => a.key === status).label}」で返事しました`);
+          } catch (e) { alert('返事を保存できませんでした: ' + e.message); await loadData(); }
+        };
+
         // 正規メンバーとサポートの区別
         const isSupport = (id) => db.value.members.find(m => m.ID === id)?.区分 === 'サポート';
         const memberGroups = computed(() => [
@@ -2569,7 +2683,8 @@
           currentPage, loading, saving, goHome, menuOrder, clickMenu, db,
           songSearchQuery, filteredSongs, songSearchOpen, songOtherOpen, songSort, songRows, fmtMD, showSongModal, editSong, openSongModal, saveSong,
           newSongVideo, getSongVideos, getMemberName, addSongVideo, removeSongVideo,
-          isSupport, memberGroups, sortMembers, memberLine,
+          isSupport, memberGroups, sortMembers, memberLine, todayStr,
+          me, showMePicker, setMe, ANSWERS, answerMark, answerStyle, attendanceOf, targetsOf, answerSummary, myAnswer, unansweredLives, answer,
           nextLive, nextStudio, laterItems, daysLabel, fmtDateShort, setlistCount, navTabs, moreTiles, clickMore,
           adminUnlocked, adminPinHash, pinInput, pinFirst, pinError, pinKey, studioView, studioList,
           liveViewMode, calendarYear, sortedLivesDesc, formatDate, liveSearch, liveEra, liveYear, liveYears, actsOf, actInput, addAct, removeAct,
