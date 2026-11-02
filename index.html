@@ -38,38 +38,84 @@
       <h1 class="text-xl font-black tracking-wider flex items-center cursor-pointer" @click="goHome">
         <i class="fas fa-compact-disc animate-spin-slow mr-2"></i> Band Hub
       </h1>
-      <div class="flex items-center space-x-5">
-        <button @click="currentPage = 'all_calendar'" class="text-white hover:text-indigo-200" title="総合カレンダー">
-          <i class="far fa-calendar-alt text-2xl"></i>
-        </button>
-        <button @click="currentPage = 'admin'" class="text-white hover:text-indigo-200 relative" title="TEAM ADMIN">
-          <i class="fas fa-key text-xl"></i>
-          <span class="absolute -top-1 -right-1 bg-red-500 rounded-full w-2 h-2"></span>
-        </button>
-        <div v-if="loading" class="text-xs font-bold animate-pulse text-indigo-200 ml-2">
-          <i class="fas fa-sync fa-spin"></i>
-        </div>
+      <div class="flex items-center gap-3">
+        <div v-if="loading" class="text-xs text-indigo-200"><i class="fas fa-sync fa-spin"></i></div>
+        <button @click="aiOpen = true" aria-label="AIに聞く"
+          class="flex items-center gap-1.5 bg-white/15 active:bg-white/25 rounded-full pl-3 pr-3.5 py-1.5 text-sm font-bold">
+          <i class="fas fa-wand-magic-sparkles"></i>AI</button>
       </div>
     </header>
 
     <div class="pt-[60px] h-full">
       <transition name="fade" mode="out-in">
 
-        <!-- ホーム画面 -->
-        <div v-if="currentPage === 'home'" key="home" class="p-6 pb-28 space-y-6">
-          <div class="text-center py-4">
-            <h2 class="text-2xl font-black text-gray-800">DASHBOARD</h2>
-            <p class="text-sm text-gray-500">バンドのすべてをスマホから管理</p>
-          </div>
-          <div id="home-menu-container" class="grid grid-cols-1 gap-3">
-            <button v-for="menu in menuOrder" :key="menu.id" @click="clickMenu(menu.id)"
-              :class="`bg-gradient-to-r ${menu.colorClass}`"
-              class="text-white p-4 rounded-2xl shadow-lg flex items-center transition transform active:scale-95 text-left cursor-grab active:cursor-grabbing">
-              <div class="bg-white/20 p-3 rounded-full mr-4"><i :class="menu.icon" class="text-xl"></i></div>
-              <div>
-                <h3 class="text-lg font-bold">{{ menu.title }}</h3>
-                <p class="text-[10px] opacity-80 mt-0.5">{{ menu.subtitle }}</p>
+        <!-- ホーム画面: 次の予定 -->
+        <div v-if="currentPage === 'home'" key="home" class="p-3 pb-36 space-y-2.5 bg-gray-50 min-h-full">
+          <div v-if="nextLive" @click="goToLiveDetail(nextLive)"
+            class="bg-gradient-to-br from-teal-500 to-emerald-600 text-white rounded-3xl p-4 shadow-lg active:scale-[0.98] transition cursor-pointer">
+            <div class="flex justify-between items-center text-xs font-bold">
+              <span class="opacity-90"><i class="fas fa-guitar mr-1"></i>次のライブ</span>
+              <span class="bg-white/25 px-2.5 py-0.5 rounded-full">{{ daysLabel(nextLive.日にち) }}</span>
+            </div>
+            <p class="text-2xl font-black mt-1 leading-tight">{{ fmtDateJa(nextLive.日にち) }}<span v-if="nextLive.ステータス === '検討中'" class="ml-2 text-xs bg-yellow-400 text-yellow-900 px-2 py-0.5 rounded-full align-middle">検討中</span></p>
+            <p class="text-sm font-bold truncate"><i class="fas fa-map-marker-alt mr-1 opacity-80"></i>{{ nextLive.ライブ場所 || '会場未定' }}</p>
+            <p class="text-[11px] opacity-90 truncate">{{ nextLive.ライブタイトル || 'タイトル未定' }}</p>
+            <div class="grid grid-cols-3 gap-1.5 mt-3 text-center">
+              <div v-for="t in [['入り', nextLive.入り時間], ['リハ', nextLive.リハ時間], ['出番', nextLive.出番時間]]" :key="t[0]" class="bg-white/15 rounded-xl py-1.5">
+                <p class="text-[10px] opacity-80 leading-none mb-1">{{ t[0] }}</p>
+                <p class="font-black leading-none" :class="t[1] && t[1].length > 5 ? 'text-xs' : 'text-base'">{{ t[1] || '未定' }}</p>
               </div>
+            </div>
+            <div class="flex gap-2 mt-3">
+              <button @click.stop="goToSetlist(nextLive)" class="flex-1 bg-white text-teal-700 font-black text-sm py-2.5 rounded-xl active:scale-95">
+                <i class="fas fa-list-ol mr-1"></i>{{ setlistCount(nextLive.ID) ? `セトリ(${setlistCount(nextLive.ID)}曲)` : 'セトリを作る' }}</button>
+              <button @click.stop="shareOnLine(nextLive, 'live_detail')" aria-label="LINEで共有" class="w-12 bg-[#06C755] rounded-xl active:scale-95"><i class="fab fa-line text-2xl"></i></button>
+            </div>
+          </div>
+          <div v-else class="bg-white rounded-3xl border border-dashed border-gray-300 p-5 text-center">
+            <p class="text-sm text-gray-500 mb-3">決まっているライブはまだありません</p>
+            <button @click="openLiveModal()" class="bg-teal-600 text-white font-bold text-sm px-5 py-2.5 rounded-full"><i class="fas fa-plus mr-1"></i>ライブを追加</button>
+          </div>
+
+          <div v-if="nextStudio" @click="openStudioModal(nextStudio)"
+            class="bg-white rounded-2xl border border-orange-200 p-3 flex items-center gap-3 shadow-sm active:bg-orange-50 cursor-pointer">
+            <div class="w-11 h-11 rounded-xl bg-orange-500 text-white flex items-center justify-center shrink-0"><i class="fas fa-microphone-alt text-lg"></i></div>
+            <div class="min-w-0 flex-grow">
+              <p class="text-[10px] font-bold text-orange-500">次のスタジオ・{{ daysLabel(nextStudio.日にち) }}</p>
+              <p class="font-black text-gray-800 leading-tight">{{ fmtDateJa(nextStudio.日にち) }} <span v-if="nextStudio.開始時間" class="text-sm">{{ nextStudio.開始時間 }}〜{{ nextStudio.終了時間 }}</span></p>
+              <p class="text-xs text-gray-500 truncate">{{ nextStudio.場所 || '場所未定' }}</p>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+            <div class="flex items-center justify-between px-3 py-2 border-b border-gray-100">
+              <p class="text-xs font-black text-gray-500">そのあとの予定</p>
+              <div class="flex gap-1.5">
+                <button @click="openLiveModal()" class="text-[11px] font-bold bg-teal-50 text-teal-700 px-2.5 py-1 rounded-full"><i class="fas fa-plus mr-0.5"></i>ライブ</button>
+                <button @click="openStudioModal(null)" class="text-[11px] font-bold bg-orange-50 text-orange-600 px-2.5 py-1 rounded-full"><i class="fas fa-plus mr-0.5"></i>スタジオ</button>
+              </div>
+            </div>
+            <button v-for="it in laterItems" :key="it.kind + it.row.ID" @click="it.kind === 'live' ? goToLiveDetail(it.row) : openStudioModal(it.row)"
+              class="w-full flex items-center gap-2.5 px-3 py-2 border-b border-gray-50 text-left active:bg-gray-50">
+              <span class="w-14 shrink-0 text-xs font-black text-gray-700">{{ fmtDateShort(it.row.日にち) }}</span>
+              <i class="fas w-4 text-center text-sm" :class="it.kind === 'live' ? 'fa-guitar text-teal-500' : 'fa-microphone-alt text-orange-500'"></i>
+              <span class="flex-grow min-w-0 text-sm text-gray-800 truncate">{{ it.kind === 'live' ? (it.row.ライブ場所 || it.row.ライブタイトル || '未定') : (it.row.場所 || 'スタジオ') }}</span>
+              <span v-if="it.kind === 'live' && it.row.ステータス === '検討中'" class="text-[10px] font-bold bg-yellow-100 text-yellow-700 px-1.5 rounded">検討中</span>
+            </button>
+            <p v-if="!laterItems.length" class="text-xs text-gray-400 text-center py-3">ほかの予定はありません</p>
+            <button @click="currentPage = 'all_calendar'" class="w-full text-right text-xs font-bold text-indigo-600 px-3 py-2">年間スケジュールを見る <i class="fas fa-chevron-right text-[10px]"></i></button>
+          </div>
+        </div>
+
+        <!-- その他 -->
+        <div v-else-if="currentPage === 'more'" key="more" class="p-4 pb-28 bg-gray-50 min-h-full">
+          <h2 class="font-black text-gray-700 mb-3">その他</h2>
+          <div class="grid grid-cols-2 gap-3">
+            <button v-for="t in moreTiles" :key="t.id" @click="clickMore(t.id)"
+              class="rounded-2xl p-4 text-white shadow active:scale-95 transition text-left h-28 flex flex-col justify-between"
+              :class="`bg-gradient-to-br ${t.color}`">
+              <i :class="t.icon" class="text-3xl opacity-90"></i>
+              <span><span class="block font-black leading-tight">{{ t.title }}</span><span class="block text-[10px] opacity-85">{{ t.sub }}</span></span>
             </button>
           </div>
         </div>
@@ -77,7 +123,7 @@
         <!-- 曲管理 -->
         <div v-else-if="currentPage === 'songs'" key="songs" class="bg-gray-50 h-full">
           <div class="p-4 bg-white flex justify-between items-center sticky top-0 z-10 shadow-sm border-b">
-            <h2 class="font-bold text-gray-700"><i class="fas fa-music mr-2 text-indigo-500"></i> SONG LIST</h2>
+            <h2 class="font-bold text-gray-700"><i class="fas fa-music mr-2 text-indigo-500"></i> 曲</h2>
             <button @click="openSongModal(null)"
               class="bg-indigo-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-md active:bg-indigo-700">
               <i class="fas fa-plus mr-1"></i> 曲を追加
@@ -117,25 +163,25 @@
         <div v-else-if="currentPage === 'lives'" key="lives" class="bg-gray-50 h-full">
           <div class="bg-white border-b sticky top-0 z-10 shadow-sm flex flex-col">
             <div class="p-4 flex justify-between items-center">
-              <h2 class="font-bold text-gray-700"><i class="fas fa-calendar-alt mr-2 text-teal-500"></i> LIVES</h2>
+              <h2 class="font-bold text-gray-700"><i class="fas fa-guitar mr-2 text-teal-500"></i> ライブ</h2>
               <button @click="openLiveModal(null)"
                 class="bg-teal-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-md active:bg-teal-700">
                 <i class="fas fa-plus mr-1"></i> ライブ追加
               </button>
             </div>
             <div class="flex border-t border-gray-100">
-              <button @click="liveViewMode = 'list'"
-                :class="liveViewMode==='list'?'border-teal-500 text-teal-600':'border-transparent text-gray-500'"
-                class="flex-1 py-3 text-sm font-bold border-b-2 transition">一覧</button>
-              <button @click="liveViewMode = 'calendar'"
-                :class="liveViewMode==='calendar'?'border-teal-500 text-teal-600':'border-transparent text-gray-500'"
-                class="flex-1 py-3 text-sm font-bold border-b-2 transition">カレンダー</button>
+              <button @click="liveViewMode = 'upcoming'"
+                :class="liveViewMode==='upcoming'?'border-teal-500 text-teal-600':'border-transparent text-gray-500'"
+                class="flex-1 py-3 text-sm font-bold border-b-2 transition">これから</button>
+              <button @click="liveViewMode = 'past'"
+                :class="liveViewMode==='past'?'border-teal-500 text-teal-600':'border-transparent text-gray-500'"
+                class="flex-1 py-3 text-sm font-bold border-b-2 transition">終わった</button>
             </div>
           </div>
           <div class="p-4 pb-24">
-            <!-- ライブ一覧 (新しい順) -->
-            <div v-if="liveViewMode === 'list'" class="space-y-4">
-              <div class="bg-white rounded-xl shadow border border-gray-200 p-3 space-y-2">
+            <!-- ライブ一覧 (これから=近い順 / 終わった=新しい順) -->
+            <div class="space-y-4">
+              <div v-if="liveViewMode === 'past'" class="bg-white rounded-xl shadow border border-gray-200 p-3 space-y-2">
                 <input type="search" v-model="liveSearch" placeholder="タイトル・会場・対バンで検索"
                   class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm">
                 <div class="flex items-center gap-2 text-xs">
@@ -144,12 +190,12 @@
                     <option v-for="y in liveYears" :key="y" :value="y">{{ y }}年</option>
                   </select>
                   <select v-model="liveEra" class="bg-gray-50 border border-gray-300 rounded-lg px-2 py-1">
-                    <option value="">すべての時代</option>
-                    <option value="noh">noh</option>
-                    <option value="jointrally">JointRally(旧名義)</option>
+                    <option value="">noh・JointRally両方</option>
+                    <option value="noh">nohだけ</option>
+                    <option value="jointrally">JointRally(旧名義)だけ</option>
                   </select>
                   <span class="text-gray-400">{{ sortedLivesDesc.length }}件</span>
-                  <a href="noh-live/index.html" class="ml-auto text-teal-600 font-bold underline">検索・分析ページ →</a>
+                  <a href="noh-live/index.html" class="ml-auto text-teal-600 font-bold underline">分析ページ →</a>
                 </div>
               </div>
               <div v-for="live in sortedLivesDesc" :key="live.ID" @click="goToLiveDetail(live)"
@@ -209,10 +255,10 @@
                   <div class="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
                     <div class="flex items-center text-[10px] font-black text-gray-400">
                       <i class="fas fa-list-ol mr-2" :class="db.setlists.some(s => s.ライブID === live.ID) ? 'text-teal-500' : 'text-gray-300'"></i>
-                      SETLIST <span class="ml-1" v-if="db.setlists.some(s => s.ライブID === live.ID)">({{ db.setlists.filter(s => s.ライブID === live.ID).length }}曲)</span>
-                      <span class="ml-1" v-else>未設定</span>
+                      セトリ <span class="ml-1" v-if="setlistCount(live.ID)">({{ setlistCount(live.ID) }}曲)</span>
+                      <span class="ml-1" v-else>未作成</span>
                     </div>
-                    <button @click.stop="openSetlistModal(live)"
+                    <button @click.stop="goToSetlist(live)"
                       class="text-[10px] font-black px-3 py-1.5 rounded-lg shadow-sm active:scale-95 transition flex items-center"
                       :class="db.setlists.some(s => s.ライブID === live.ID) ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-500'">
                       {{ db.setlists.some(s => s.ライブID === live.ID) ? 'セトリを編集' : '＋ セトリ作成' }}
@@ -221,32 +267,9 @@
                   </div>
                 </div>
               </div>
-              <div v-if="sortedLivesDesc.length === 0" class="text-center py-10 text-gray-400">予定がありません</div>
+              <div v-if="sortedLivesDesc.length === 0" class="text-center py-10 text-gray-400">{{ liveViewMode === 'upcoming' ? '決まっているライブはありません' : '見つかりません' }}</div>
             </div>
 
-            <!-- 年間カレンダー -->
-            <div v-else-if="liveViewMode === 'calendar'" class="bg-white rounded-xl shadow border border-gray-200 p-4">
-              <div class="flex justify-between items-center mb-4 p-2 border-b">
-                <button @click="calendarYear--" class="p-2 text-gray-500 active:bg-gray-100 rounded"><i class="fas fa-chevron-left"></i></button>
-                <h3 class="font-bold text-xl">{{ calendarYear }}年</h3>
-                <button @click="calendarYear++" class="p-2 text-gray-500 active:bg-gray-100 rounded"><i class="fas fa-chevron-right"></i></button>
-              </div>
-              <div class="grid grid-cols-3 gap-3">
-                <div v-for="month in 12" :key="month" class="border border-gray-100 rounded-lg p-2 text-center"
-                  :class="hasLiveMonth(calendarYear, month) ? 'bg-teal-50 border-teal-200' : 'bg-gray-50'">
-                  <h4 class="text-xs font-bold text-gray-500 mb-1">{{ month }}月</h4>
-                  <div class="flex flex-col gap-1 min-h-[20px]">
-                    <div v-for="live in getLivesInMonth(calendarYear, month)" :key="live.ID"
-                      @click="goToLiveDetail(live)"
-                      class="text-[9px] text-white rounded px-1 py-0.5 cursor-pointer shadow-sm truncate text-left"
-                      :class="live.ステータス==='中止'?'bg-gray-400':live.ステータス==='検討中'?'bg-yellow-500':'bg-teal-500'">
-                      {{ live.日にち ? live.日にち.slice(8,10) : '' }}日: {{ live.ライブ場所 || '場所未定' }}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <p class="text-[10px] text-center text-gray-400 mt-4">緑の点をタップするとライブ詳細へ飛べます</p>
-            </div>
           </div>
         </div>
 
@@ -276,9 +299,7 @@
               <button @click="liveDetailTab='stageplot'"
                 :class="{'text-teal-600 border-b-2 border-teal-600': liveDetailTab==='stageplot'}"
                 class="flex-1 whitespace-nowrap px-1 py-3 transition">セット図</button>
-              <button @click="liveDetailTab='files'"
-                :class="{'text-teal-600 border-b-2 border-teal-600': liveDetailTab==='files'}"
-                class="flex-1 whitespace-nowrap px-1 py-3 transition">資料</button>
+
             </div>
           </div>
 
@@ -399,7 +420,7 @@
                     </div>
                     <div v-if="songId !== '__MC__'" class="text-xs font-mono font-bold text-indigo-500 w-14 text-right pr-3">{{ formatTimeStr(getSongTime(songId)) }}</div>
                     <div v-else class="text-xs text-purple-400 w-14 text-right pr-3">—</div>
-                    <button @click="removeFromSetlist(idx)"
+                    <button @click="songId === '__MC__' || confirm(`「${getSongName(songId)}」をセトリから外しますか?`) ? removeFromSetlist(idx) : null"
                       class="w-8 h-8 rounded-full text-red-400 hover:bg-red-50 active:bg-red-100 flex items-center justify-center">
                       <i class="fas fa-times"></i></button>
                   </div>
@@ -407,10 +428,10 @@
                     曲が登録されていません。<br>「曲を追加」から選んでください。
                   </div>
                 </div>
-                <div class="p-3 bg-gray-50 rounded-b-xl">
+                <div class="fixed inset-x-0 bottom-[72px] max-w-md mx-auto px-4 z-20">
                   <button @click="saveSetlist" :disabled="saving"
-                    class="w-full bg-teal-600 text-white font-bold py-2.5 rounded-lg shadow active:scale-95 transition text-sm">
-                    <i class="fas fa-save mr-2"></i>セットリストを保存
+                    class="w-full bg-teal-600 text-white font-black py-3.5 rounded-2xl shadow-lg active:scale-95 transition">
+                    <i class="fas mr-2" :class="saving ? 'fa-spinner fa-spin' : 'fa-save'"></i>{{ saving ? '保存中…' : 'セトリを保存' }}
                   </button>
                 </div>
               </div>
@@ -455,15 +476,17 @@
                   <input type="text" v-model="newGuest.名前" placeholder="名前"
                     class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm">
                   <div class="flex space-x-2">
-                    <input type="number" v-model="newGuest.人数" placeholder="人数"
-                      class="w-1/3 bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                    <input type="number" v-model="newGuest.合計金額" placeholder="金額(円)"
-                      class="w-2/3 bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono">
+                    <label class="w-1/3"><span class="text-[10px] font-bold text-gray-500">人数</span>
+                      <input type="number" inputmode="numeric" v-model="newGuest.人数"
+                        class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm"></label>
+                    <label class="w-2/3"><span class="text-[10px] font-bold text-gray-500">受け取る金額(円)</span>
+                      <input type="number" inputmode="numeric" v-model="newGuest.合計金額"
+                        class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono"></label>
                   </div>
                   <label class="flex items-center text-sm text-gray-600 bg-gray-50 p-2 rounded-lg border border-gray-200">
                     <input type="checkbox" v-model="newGuest.チケット不要フラグ"
                       class="mr-2 rounded text-teal-600 focus:ring-teal-500 h-4 w-4">
-                    関係者 (チケット代不要)
+                    関係者(チケット代なし)
                   </label>
                   <button @click="addGuest" :disabled="!newGuest.名前 || saving"
                     class="w-full bg-[#111] text-white font-bold py-2 rounded-lg disabled:bg-gray-300 shadow text-sm">
@@ -499,12 +522,6 @@
               </div>
             </div>
 
-            <div v-if="liveDetailTab === 'files'">
-              <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm text-center text-gray-400 py-10">
-                <i class="far fa-folder-open text-4xl mb-2"></i>
-                <p class="text-sm font-bold">資料置き場 (実装予定)</p>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -518,15 +535,15 @@
               <button @click="currentPage = 'home'"
                 class="p-2 mr-2 bg-gray-100 rounded-full active:bg-gray-200 text-gray-500">
                 <i class="fas fa-arrow-left"></i></button>
-              <h2 class="font-bold text-gray-700"><i class="far fa-calendar-alt mr-2 text-indigo-500"></i> SCHEDULE</h2>
+              <h2 class="font-bold text-gray-700 whitespace-nowrap"><i class="far fa-calendar-alt mr-1 text-indigo-500"></i>年間</h2>
             </div>
             <div class="flex space-x-2">
               <button @click="openLiveModal()"
-                class="bg-teal-500 text-white px-3 py-1.5 rounded text-xs font-bold shadow-sm active:bg-teal-600">
-                <i class="fas fa-guitar mr-1"></i>ライブ</button>
+                class="bg-teal-500 text-white px-2.5 py-1.5 rounded-full text-[11px] font-bold shadow-sm whitespace-nowrap">
+                <i class="fas fa-plus mr-0.5"></i>ライブ</button>
               <button @click="openStudioModal(null)"
-                class="bg-orange-500 text-white px-3 py-1.5 rounded text-xs font-bold shadow-sm active:bg-orange-600">
-                <i class="fas fa-microphone-alt mr-1"></i>スタジオ</button>
+                class="bg-orange-500 text-white px-2.5 py-1.5 rounded-full text-[11px] font-bold shadow-sm whitespace-nowrap">
+                <i class="fas fa-plus mr-0.5"></i>スタジオ</button>
             </div>
           </div>
 
@@ -566,7 +583,7 @@
                     </div>
                     <!-- スタジオ予定 -->
                     <div v-for="st in getStudiosInMonth(calendarYear, month)" :key="'st'+st.ID"
-                      @click="currentPage='studios'"
+                      @click="openStudioModal(st)"
                       class="text-[11px] bg-orange-500 text-white rounded-lg px-3 py-1.5 cursor-pointer shadow-sm flex items-center justify-between">
                       <div class="flex items-center min-w-0">
                         <span class="font-bold mr-2 flex-shrink-0">{{ st.日にち ? st.日にち.slice(8,10) : '' }}日</span>
@@ -592,20 +609,21 @@
       <transition name="fade">
         <div v-if="currentPage === 'studios'" class="absolute inset-0 z-30 bg-gray-50 flex flex-col pt-[60px]">
           <div class="p-4 bg-white border-b flex justify-between items-center shadow-sm sticky top-[60px] z-10">
-            <div class="flex items-center">
-              <button @click="currentPage = 'home'"
-                class="p-2 mr-2 bg-gray-100 rounded-full active:bg-gray-200 text-gray-500">
-                <i class="fas fa-arrow-left"></i></button>
-              <h2 class="font-bold text-gray-700"><i class="fas fa-microphone-alt mr-2 text-orange-500"></i> STUDIOS</h2>
-            </div>
+            <h2 class="font-bold text-gray-700"><i class="fas fa-microphone-alt mr-2 text-orange-500"></i> スタジオ</h2>
             <button @click="openStudioModal(null)"
               class="bg-orange-500 text-white px-4 py-2 rounded-full text-sm font-bold shadow-md active:bg-orange-600">
               <i class="fas fa-plus mr-1"></i> 追加
             </button>
           </div>
 
+          <div class="flex bg-white border-b">
+            <button @click="studioView = 'upcoming'" :class="studioView==='upcoming'?'border-orange-500 text-orange-600':'border-transparent text-gray-500'"
+              class="flex-1 py-3 text-sm font-bold border-b-2 transition">これから</button>
+            <button @click="studioView = 'past'" :class="studioView==='past'?'border-orange-500 text-orange-600':'border-transparent text-gray-500'"
+              class="flex-1 py-3 text-sm font-bold border-b-2 transition">終わった</button>
+          </div>
           <div class="flex-grow overflow-y-auto p-4 relative pb-24">
-            <div class="bg-white rounded-xl shadow border border-gray-200 p-4 mb-4 flex justify-between items-center">
+            <div v-if="studioView === 'past'" class="bg-white rounded-xl shadow border border-gray-200 p-2 mb-4 flex justify-between items-center">
               <button @click="changeStudioMonth(-1)" class="p-2 text-gray-500 active:bg-gray-100 rounded">
                 <i class="fas fa-chevron-left"></i></button>
               <h3 class="font-bold text-lg">{{ studioYear }}年 {{ studioMonth }}月</h3>
@@ -614,8 +632,8 @@
             </div>
 
             <div class="space-y-3">
-              <div v-for="st in getStudiosInExactMonth(studioYear, studioMonth)" :key="st.ID"
-                class="bg-white p-4 rounded-xl shadow border border-gray-100 flex flex-col">
+              <div v-for="st in studioList" :key="st.ID" @click="openStudioModal(st)"
+                class="bg-white p-4 rounded-xl shadow border border-gray-100 flex flex-col active:bg-orange-50 cursor-pointer">
                 <div class="flex justify-between items-start mb-2">
                   <div>
                     <h3 class="font-bold text-gray-800 flex items-center">
@@ -626,19 +644,18 @@
                     </p>
                   </div>
                   <div class="flex items-center space-x-2">
-                    <a v-for="(vu, vi) in urlList(st.動画URL)" :key="vi" :href="vu" target="_blank"
+                    <a v-for="(vu, vi) in urlList(st.動画URL)" :key="vi" :href="vu" target="_blank" @click.stop
                       class="relative w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100">
                       <i class="fas fa-video text-sm"></i>
                       <span v-if="urlList(st.動画URL).length > 1" class="absolute -top-1 -right-1 bg-blue-600 text-white text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center">{{ vi + 1 }}</span>
                     </a>
-                    <button @click="openStudioModal(st)" class="text-gray-400 p-1 hover:text-orange-500">
-                      <i class="fas fa-edit"></i></button>
+                    <i class="fas fa-chevron-right text-gray-300 text-sm"></i>
                   </div>
                 </div>
                 <p class="text-[13px] text-gray-600 flex items-center mb-2">
                   <i class="fas fa-map-marker-alt text-red-500 mr-2 w-4 text-center"></i>
                   <a :href="`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(st.場所)}`"
-                    target="_blank" class="text-blue-600 underline truncate">{{ st.場所 }}</a>
+                    target="_blank" @click.stop class="text-blue-600 underline truncate">{{ st.場所 }}</a>
                 </p>
                 <div class="bg-gray-50 border border-gray-100 p-2 rounded text-[11px] text-gray-600 mb-2">
                   <span class="font-bold text-gray-500 mr-1">参加メンバー:</span>
@@ -647,8 +664,8 @@
                 </div>
                 <p v-if="st.備考" class="text-xs text-gray-500 mt-1 bg-gray-50 p-2 rounded whitespace-pre-line">{{ st.備考 }}</p>
               </div>
-              <div v-if="getStudiosInExactMonth(studioYear, studioMonth).length === 0"
-                class="text-center py-10 text-gray-400">予定がありません</div>
+              <div v-if="studioList.length === 0"
+                class="text-center py-10 text-gray-400">{{ studioView === 'upcoming' ? '決まっているスタジオはありません' : 'この月はありません' }}</div>
             </div>
           </div>
         </div>
@@ -714,17 +731,12 @@
             </div>
             <div>
               <label class="text-xs font-bold text-gray-500 block mb-2 border-b pb-1">参加メンバー</label>
-              <div class="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
-                <div v-for="m in db.members" :key="m.ID"
-                  class="flex items-center justify-between bg-white border border-gray-200 p-2 rounded-lg text-sm shadow-sm"
-                  @click="toggleStudioMember(m.ID)">
-                  <span class="text-gray-700 font-bold text-xs">{{ m.名前 }}</span>
-                  <div class="w-8 h-4 rounded-full transition-colors relative"
-                    :class="editStudio.参加メンバー && editStudio.参加メンバー.includes(m.ID) ? 'bg-orange-500' : 'bg-gray-200'">
-                    <div class="w-4 h-4 bg-white rounded-full absolute top-0 shadow transition-transform"
-                      :class="editStudio.参加メンバー && editStudio.参加メンバー.includes(m.ID) ? 'translate-x-4' : 'translate-x-0'"></div>
-                  </div>
-                </div>
+              <div class="grid grid-cols-5 gap-1.5">
+                <button v-for="m in db.members" :key="m.ID" @click="toggleStudioMember(m.ID)"
+                  class="rounded-xl py-1.5 text-center border transition active:scale-95"
+                  :class="editStudio.参加メンバー && editStudio.参加メンバー.includes(m.ID) ? 'bg-orange-500 border-orange-500 text-white' : 'bg-gray-50 border-gray-200 text-gray-400'">
+                  <span class="block text-[11px] font-black truncate px-0.5">{{ m.名前 }}</span>
+                </button>
               </div>
             </div>
             <div>
@@ -745,27 +757,43 @@
         <div v-if="currentPage === 'admin'" class="absolute inset-0 z-30 bg-gray-50 flex flex-col pt-[60px]">
           <div class="bg-white shadow relative z-10 sticky top-[60px]">
             <div class="p-3 border-b flex items-center bg-fuchsia-600 text-white">
-              <button @click="currentPage = 'home'" class="p-2 mr-2 active:bg-fuchsia-700 rounded">
+              <button @click="currentPage = 'more'" class="p-2 mr-2 active:bg-fuchsia-700 rounded">
                 <i class="fas fa-arrow-left"></i></button>
-              <h2 class="font-bold text-lg"><i class="fas fa-key mr-2"></i> TEAM ADMIN</h2>
+              <h2 class="font-bold text-lg"><i class="fas fa-key mr-2"></i> 管理</h2>
             </div>
-            <div class="flex border-b text-sm font-bold text-gray-500">
+            <div v-if="adminUnlocked" class="flex border-b text-xs font-bold text-gray-500">
               <button @click="adminTab='sns'"
                 :class="{'text-fuchsia-600 border-b-2 border-fuchsia-600': adminTab==='sns'}"
-                class="flex-1 py-3 transition">SNS/WEBパスワード</button>
+                class="flex-1 py-3 transition">SNSログイン</button>
               <button @click="adminTab='members'"
                 :class="{'text-fuchsia-600 border-b-2 border-fuchsia-600': adminTab==='members'}"
-                class="flex-1 py-3 transition">メンバー構成</button>
+                class="flex-1 py-3 transition">メンバー</button>
               <button @click="adminTab='api'"
                 :class="{'text-fuchsia-600 border-b-2 border-fuchsia-600': adminTab==='api'}"
-                class="flex-1 py-3 transition">API設定</button>
+                class="flex-1 py-3 transition">データ</button>
               <button @click="adminTab='knowledge'"
                 :class="{'text-fuchsia-600 border-b-2 border-fuchsia-600': adminTab==='knowledge'}"
                 class="flex-1 py-3 transition">AIナレッジ</button>
             </div>
           </div>
 
-          <div class="flex-grow overflow-y-auto p-4 space-y-3 pb-24 relative">
+          <!-- PINロック -->
+          <div v-if="!adminUnlocked" class="flex-grow flex flex-col items-center justify-center px-8 pb-24">
+            <i class="fas fa-lock text-4xl text-fuchsia-500 mb-3"></i>
+            <p class="font-black text-gray-800">{{ adminPinHash ? 'PINを入力' : (pinFirst ? 'もう一度入力' : '管理用のPINを決めてください') }}</p>
+            <p class="text-xs text-gray-500 mb-5 text-center">{{ adminPinHash ? 'メンバー管理・SNSログイン情報を見るのに必要です' : '4けたの数字。メンバーと共有してください' }}</p>
+            <div class="flex gap-3 mb-6">
+              <span v-for="i in 4" :key="i" class="w-4 h-4 rounded-full border-2 border-fuchsia-500" :class="pinInput.length >= i ? 'bg-fuchsia-500' : ''"></span>
+            </div>
+            <p v-if="pinError" class="text-xs font-bold text-red-500 -mt-3 mb-3">{{ pinError }}</p>
+            <div class="grid grid-cols-3 gap-3 w-full max-w-[260px]">
+              <button v-for="k in ['1','2','3','4','5','6','7','8','9','','0','⌫']" :key="k" @click="pinKey(k)" :disabled="!k"
+                class="h-14 rounded-2xl text-xl font-black active:scale-95 transition"
+                :class="k ? 'bg-white border border-gray-200 shadow-sm text-gray-800' : 'invisible'">{{ k }}</button>
+            </div>
+          </div>
+
+          <div v-else class="flex-grow overflow-y-auto p-4 space-y-3 pb-24 relative">
             <div v-if="adminTab === 'sns'">
               <div class="flex justify-end mb-3">
                 <button @click="openSnsModal(null)"
@@ -935,14 +963,15 @@
               <label class="text-xs font-bold text-gray-500 block mb-1">演奏回数</label>
               <input type="number" v-model="editSong.演奏回数" disabled
                 class="w-full bg-gray-200 border border-gray-300 rounded-lg px-3 py-2 font-mono text-gray-500 cursor-not-allowed">
+              <p class="text-[10px] text-gray-400 mt-0.5">セトリから自動で数えます</p>
             </div>
             <div>
-              <label class="text-xs font-bold text-gray-500 block mb-1">リンク URL (全体Audio/Video)</label>
+              <label class="text-xs font-bold text-gray-500 block mb-1">音源・動画のリンク(バンド全体)</label>
               <input type="text" v-model="editSong.リンクURL"
                 class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm text-blue-600">
             </div>
             <div>
-              <label class="text-xs font-bold text-gray-500 block mb-1 border-t border-gray-200 pt-3 mt-1">パート別・メンバー別 動画リンク</label>
+              <label class="text-xs font-bold text-gray-500 block mb-1 border-t border-gray-200 pt-3 mt-1">メンバー別の動画(手元・パート練習など)</label>
               <div class="space-y-2 mb-2" v-if="editSong.ID">
                 <div v-for="sv in getSongVideos(editSong.ID)" :key="sv.ID"
                   class="flex items-center space-x-2 bg-indigo-50 p-2 rounded border border-indigo-100">
@@ -957,15 +986,16 @@
                 </div>
               </div>
               <div class="flex space-x-2 text-xs" v-if="editSong.ID">
-                <select v-model="newSongVideo.メンバーID" class="bg-white border border-gray-300 rounded px-2 py-1.5 w-1/3">
-                  <option value="">メンバー...</option>
-                  <option v-for="m in db.members" :value="m.ID" :key="m.ID">{{m.名前}} {{m.パート ? `(${m.パート})` : ''}}</option>
-                </select>
-                <input type="text" v-model="newSongVideo.動画URL" placeholder="動画URLを入力"
+                <input type="text" v-model="newSongVideo.動画URL" :placeholder="newSongVideo.メンバーID ? `${getMemberName(newSongVideo.メンバーID, true)}の動画URL` : '↓先に誰の動画か選ぶ'"
                   class="flex-grow bg-white border border-gray-300 rounded px-2 py-1.5">
                 <button @click="addSongVideo(editSong.ID)"
                   class="bg-indigo-100 text-indigo-800 border border-indigo-200 px-2 py-1 rounded font-bold whitespace-nowrap active:bg-indigo-200">
                   <i class="fas fa-plus"></i> 追加</button>
+              </div>
+              <div class="grid grid-cols-5 gap-1 mt-1.5" v-if="editSong.ID">
+                <button v-for="m in db.members" :key="m.ID" @click="newSongVideo.メンバーID = m.ID"
+                  class="rounded-lg py-1 text-[10px] font-bold border truncate px-0.5"
+                  :class="newSongVideo.メンバーID === m.ID ? 'bg-indigo-500 border-indigo-500 text-white' : 'bg-gray-50 border-gray-200 text-gray-500'">{{ m.名前 }}</button>
               </div>
               <p v-else class="text-[10px] text-gray-400 mt-1">※動画を追加するには、まず基本情報を保存してください。</p>
             </div>
@@ -1262,11 +1292,7 @@
       </transition>
 
       <!-- AIアシスタント (フローティング) -->
-      <div v-show="!showPlotEditor && currentPage !== 'live_detail'" :class="currentPage === 'home' ? 'bottom-4' : 'bottom-20'" class="fixed inset-x-0 max-w-md mx-auto z-40 pointer-events-none">
-        <button @click="aiOpen = true" aria-label="AIに聞く"
-          class="pointer-events-auto float-right mr-4 w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-white shadow-xl flex items-center justify-center active:scale-95 transition">
-          <i class="fas fa-wand-magic-sparkles text-lg"></i>
-        </button>
+      <div v-show="!showPlotEditor && currentPage === 'home'" class="fixed inset-x-0 bottom-[84px] max-w-md mx-auto z-40 pointer-events-none">
         <a v-if="currentPage === 'home'" href="game.html" aria-label="ミニゲーム OGURA the DIVER"
           class="game-fab pointer-events-auto float-left ml-4 h-12 pl-3 pr-4 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-xl flex items-center gap-2 active:scale-95 transition">
           <i class="fas fa-gamepad text-lg"></i><span class="text-xs font-black leading-tight">ミニゲーム<br><span class="font-bold opacity-90">潜れ!</span></span>
@@ -1330,24 +1356,12 @@
       </transition>
 
       <!-- Bottom Navigation -->
-      <nav v-show="!showPlotEditor && currentPage !== 'home'"
-        class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-2 flex justify-around pb-safe z-10 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
-        <button @click="currentPage = 'home'"
-          class="flex flex-col items-center p-2 text-gray-400 active:text-indigo-600 transition">
-          <i class="fas fa-home text-xl mb-1"></i><span class="text-[10px] font-bold">HOME</span>
-        </button>
-        <button @click="currentPage = 'songs'" :class="currentPage === 'songs' ? 'text-indigo-600' : 'text-gray-400'"
-          class="flex flex-col items-center p-2 transition">
-          <i class="fas fa-music text-xl mb-1"></i><span class="text-[10px] font-bold">SONGS</span>
-        </button>
-        <button @click="currentPage = 'lives'"
-          :class="currentPage === 'lives' || currentPage === 'live_detail' ? 'text-teal-600' : 'text-gray-400'"
-          class="flex flex-col items-center p-2 transition">
-          <i class="fas fa-calendar-check text-xl mb-1"></i><span class="text-[10px] font-bold">LIVES</span>
-        </button>
-        <button @click="currentPage = 'studios'" :class="currentPage === 'studios' ? 'text-orange-500' : 'text-gray-400'"
-          class="flex flex-col items-center p-2 transition">
-          <i class="fas fa-microphone-alt text-xl mb-1"></i><span class="text-[10px] font-bold">STUDIOS</span>
+      <nav v-show="!showPlotEditor"
+        class="fixed bottom-0 inset-x-0 max-w-md mx-auto bg-white border-t border-gray-200 px-1 pt-1.5 pb-2 flex justify-around pb-safe z-40 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
+        <button v-for="t in navTabs" :key="t.id" @click="currentPage = t.id"
+          class="flex-1 flex flex-col items-center py-1.5 transition rounded-xl"
+          :class="t.match.includes(currentPage) ? t.color : 'text-gray-400'">
+          <i :class="t.icon" class="text-xl mb-0.5"></i><span class="text-[11px] font-bold">{{ t.label }}</span>
         </button>
       </nav>
     </div>
@@ -1542,7 +1556,7 @@
         const callApi = async (action, data = null) => {
           switch (action) {
             case 'getAllData': {
-              const tables = ['songs', 'lives', 'setlists', 'guests', 'stagePlots', 'files', 'sns', 'studios', 'members', 'songVideos', 'ai_knowledge'];
+              const tables = ['songs', 'lives', 'setlists', 'guests', 'stagePlots', 'files', 'studios', 'members', 'songVideos', 'ai_knowledge'];
               const rows = await Promise.all(tables.map(t => sb(`${t}?select=*&limit=5000`)));
               const out = {};
               tables.forEach((t, i) => { out[t] = rows[i] || []; });
@@ -1579,7 +1593,7 @@
             if (data) db.value = {
               songs: data.songs || [], lives: data.lives || [], setlists: data.setlists || [],
               guests: data.guests || [], stagePlots: data.stagePlots || [], files: data.files || [],
-              sns: data.sns || [], studios: data.studios || [], members: data.members || [],
+              sns: db.value.sns || [], studios: data.studios || [], members: data.members || [],
               songVideos: data.songVideos || [], knowledge: data.ai_knowledge || []
             };
           } catch (err) {
@@ -1588,6 +1602,93 @@
             loading.value = false;
           }
         };
+
+        // --- ホーム(次の予定) ---
+        const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+        const daysLabel = (ds) => {
+          if (!ds) return '';
+          const n = Math.round((new Date(ds + 'T00:00:00') - new Date(todayStr() + 'T00:00:00')) / 86400000);
+          return n === 0 ? '今日' : n === 1 ? '明日' : n > 0 ? `あと${n}日` : `${-n}日前`;
+        };
+        const fmtDateShort = (ds) => {
+          const x = new Date(ds + 'T00:00:00');
+          return isNaN(x) ? (ds || '') : `${x.getMonth() + 1}/${x.getDate()}(${'日月火水木金土'[x.getDay()]})`;
+        };
+        const upcomingLives = computed(() => db.value.lives.filter(l => String(l.日にち || '') >= todayStr() && l.ステータス !== '中止')
+          .sort((a, b) => String(a.日にち).localeCompare(String(b.日にち))));
+        const upcomingStudios = computed(() => db.value.studios.filter(x => String(x.日にち || '') >= todayStr())
+          .sort((a, b) => String(a.日にち).localeCompare(String(b.日にち))));
+        const nextLive = computed(() => upcomingLives.value[0] || null);
+        const nextStudio = computed(() => upcomingStudios.value[0] || null);
+        const laterItems = computed(() => [
+          ...upcomingLives.value.slice(1).map(row => ({ kind: 'live', row })),
+          ...upcomingStudios.value.slice(1).map(row => ({ kind: 'studio', row })),
+        ].sort((a, b) => String(a.row.日にち).localeCompare(String(b.row.日にち))).slice(0, 5));
+        const setlistCount = (liveId) => db.value.setlists.filter(s => s.ライブID === liveId && s.曲ID !== '__MC__').length;
+        const navTabs = [
+          { id: 'home', label: '予定', icon: 'fas fa-calendar-day', color: 'text-indigo-600', match: ['home', 'all_calendar'] },
+          { id: 'lives', label: 'ライブ', icon: 'fas fa-guitar', color: 'text-teal-600', match: ['lives', 'live_detail'] },
+          { id: 'songs', label: '曲', icon: 'fas fa-music', color: 'text-indigo-600', match: ['songs'] },
+          { id: 'studios', label: 'スタジオ', icon: 'fas fa-microphone-alt', color: 'text-orange-500', match: ['studios'] },
+          { id: 'more', label: 'その他', icon: 'fas fa-th-large', color: 'text-fuchsia-600', match: ['more', 'admin'] },
+        ];
+        const moreTiles = [
+          { id: 'all_calendar', title: '年間スケジュール', sub: 'ライブとスタジオを月ごとに', icon: 'far fa-calendar-alt', color: 'from-indigo-500 to-blue-600' },
+          { id: 'masterplot', title: 'マスターセット図', sub: 'PA向けの基本の機材図', icon: 'fas fa-project-diagram', color: 'from-orange-500 to-red-500' },
+          { id: 'analysis', title: 'ライブ分析', sub: '過去のライブを検索・集計', icon: 'fas fa-chart-bar', color: 'from-teal-500 to-emerald-600' },
+          { id: 'url:https://script.google.com/macros/s/AKfycby0GpJNqC_10Rd9vOLE19LoFcopLW0Lc31izxJ7qwtXPEocAjWPsUqjAsy84uKDADFw/exec', title: '物販アプリ', sub: '物販のレジを開く', icon: 'fas fa-cash-register', color: 'from-purple-500 to-violet-600' },
+          { id: 'admin', title: '管理', sub: 'メンバー・SNSログイン(PIN)', icon: 'fas fa-key', color: 'from-fuchsia-500 to-pink-600' },
+        ];
+        const clickMore = (id) => {
+          if (id === 'analysis') { location.href = 'noh-live/index.html'; return; }
+          clickMenu(id);
+        };
+
+        // --- 管理画面のPINロック ---
+        const adminUnlocked = ref(sessionStorage.getItem('adminUnlocked') === '1');
+        const adminPinHash = ref(null);
+        const pinInput = ref('');
+        const pinFirst = ref('');
+        const pinError = ref('');
+        const sha256 = async (t) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode('bandhub-noh:' + t)))].map(b => b.toString(16).padStart(2, '0')).join('');
+        const loadPinHash = async () => {
+          try { const r = await sb('app_settings?key=eq.admin_pin_hash&select=value'); adminPinHash.value = r && r[0] ? r[0].value : ''; }
+          catch (e) { adminPinHash.value = ''; }
+        };
+        const loadSns = async () => { try { db.value.sns = await sb('sns?select=*') || []; } catch (e) { /* 表示だけ空に */ } };
+        const unlockAdmin = () => { adminUnlocked.value = true; sessionStorage.setItem('adminUnlocked', '1'); loadSns(); };
+        const pinKey = async (k) => {
+          pinError.value = '';
+          if (k === '⌫') { pinInput.value = pinInput.value.slice(0, -1); return; }
+          if (pinInput.value.length >= 4) return;
+          pinInput.value += k;
+          if (pinInput.value.length < 4) return;
+          const entered = pinInput.value;
+          await new Promise(r => setTimeout(r, 120));
+          pinInput.value = '';
+          if (adminPinHash.value) {
+            if (await sha256(entered) === adminPinHash.value) unlockAdmin();
+            else pinError.value = 'PINが違います';
+          } else if (!pinFirst.value) {
+            pinFirst.value = entered;
+          } else if (pinFirst.value !== entered) {
+            pinFirst.value = ''; pinError.value = '一致しませんでした。最初からどうぞ';
+          } else {
+            const h = await sha256(entered);
+            try {
+              await sb('app_settings', { method: 'POST', body: { key: 'admin_pin_hash', value: h }, prefer: 'return=minimal' });
+              adminPinHash.value = h; pinFirst.value = ''; unlockAdmin();
+              showToast('PINを設定しました');
+            } catch (e) { pinFirst.value = ''; pinError.value = '保存できませんでした'; await loadPinHash(); }
+          }
+        };
+        Vue.watch(currentPage, (v) => { if (v === 'admin' && !adminUnlocked.value) { pinInput.value = ''; pinFirst.value = ''; pinError.value = ''; loadPinHash(); } if (v === 'admin' && adminUnlocked.value) loadSns(); });
+
+        // スタジオ: これから/終わった
+        const studioView = ref('upcoming');
+        const studioList = computed(() => studioView.value === 'upcoming'
+          ? upcomingStudios.value
+          : getStudiosInExactMonth(studioYear.value, studioMonth.value).filter(x => String(x.日にち || '') < todayStr()));
 
         const saveSettings = () => {
           loadData();
@@ -1647,7 +1748,7 @@
         };
 
         // ライブ管理
-        const liveViewMode = ref('list');
+        const liveViewMode = ref('upcoming');
         const calendarYear = ref(new Date().getFullYear());
 
         // 新しい順（降順）
@@ -1661,8 +1762,14 @@
         });
         const actsOf = (live) => Array.isArray(live.対バン) ? live.対バン : [];
         const sortedLivesDesc = computed(() => {
+          const today = todayStr();
+          if (liveViewMode.value === 'upcoming') {
+            return db.value.lives.filter(l => String(l.日にち || '') >= today)
+              .sort((a, b) => String(a.日にち).localeCompare(String(b.日にち)));
+          }
           const q = liveSearch.value.trim().toLowerCase();
           return [...db.value.lives]
+            .filter(l => String(l.日にち || '') < today)
             .filter(l => !liveYear.value || String(l.日にち || '').startsWith(liveYear.value))
             .filter(l => !liveEra.value || (liveEra.value === 'now' ? !l.時代 || l.時代 === 'noh' : l.時代 === liveEra.value))
             .filter(l => !q || [l.ライブタイトル, l.ライブ場所, l.日にち, l.備考, actsOf(l).join(' ')].join(' ').toLowerCase().includes(q))
@@ -2389,6 +2496,8 @@
           currentPage, loading, saving, goHome, menuOrder, clickMenu, db,
           songSearchQuery, filteredSongs, showSongModal, editSong, openSongModal, saveSong,
           newSongVideo, getSongVideos, getMemberName, addSongVideo, removeSongVideo,
+          nextLive, nextStudio, laterItems, daysLabel, fmtDateShort, setlistCount, navTabs, moreTiles, clickMore,
+          adminUnlocked, adminPinHash, pinInput, pinFirst, pinError, pinKey, studioView, studioList,
           liveViewMode, calendarYear, sortedLivesDesc, formatDate, liveSearch, liveEra, liveYear, liveYears, actsOf, actInput, addAct, removeAct,
           getLivesInMonth, hasLiveMonth, getStudiosInMonth, hasStudioMonth, sortedMonths, uniqueVenues,
           studioYear, studioMonth, changeStudioMonth, getStudiosInExactMonth, uniqueStudioVenues,
