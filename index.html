@@ -2627,7 +2627,11 @@
           if (t.length) L.push('', ...t);
           const acts = actsOf(l);
           if (acts.length) L.push('', `🤝 対バン: ${acts.join(' / ')}`);
-          if ((l.参加メンバー || []).length) L.push(`👥 ${memberLine(l.参加メンバー)}`);
+          const ms = sortMembers(l.参加メンバー);
+          const reg = ms.filter(id => !isSupport(id)).map(id => getMemberName(id, true));
+          const sup = ms.filter(isSupport).map(id => getMemberName(id, true));
+          if (reg.length) L.push(`👥:${reg.join('・')}`);
+          if (sup.length) L.push(`👥(sp):${sup.join('・')}`);
           const sl = db.value.setlists.filter(s => s.ライブID === l.ID).sort((a, b) => Number(a.順番) - Number(b.順番));
           if (sl.length) {
             let n = 0;
