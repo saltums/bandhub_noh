@@ -73,7 +73,7 @@
       <span class="sub">15秒でどこまで潜れる?</span>
     </a>
 
-    <a class="card kazuya" id="kazuya" href="kazuya.html">
+    <a class="card kazuya" id="kazuya" href="https://saltums.github.io/kazuya-gekijoban/">
       <div class="art"><div class="spot"></div><div class="eyes"><span class="eye"></span><span class="eye"></span></div></div>
       <span class="play">▶ あそぶ</span>
       <span class="title">一也 劇場版</span>
@@ -81,13 +81,5 @@
     </a>
   </div>
 
-  <script>
-    // 一也 劇場版がまだ置かれていないときは「準備中」表示にする
-    fetch('kazuya.html', { method: 'HEAD' }).then(r => { if (!r.ok) throw 0; }).catch(() => {
-      const c = document.getElementById('kazuya');
-      c.classList.add('soon');
-      c.querySelector('.play').textContent = '準備中';
-    });
-  </script>
 </body>
 </html>
