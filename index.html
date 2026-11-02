@@ -67,6 +67,20 @@
             <i class="fas fa-chevron-right text-indigo-400 text-xs"></i>
           </button>
 
+          <!-- スタジオのほうが先なら、スタジオを大きく一番上に -->
+          <div v-if="studioFirst" @click="openStudioModal(nextStudio)"
+            class="bg-gradient-to-br from-orange-500 to-amber-500 text-white rounded-3xl p-4 shadow-lg active:scale-[0.98] transition cursor-pointer">
+            <div class="flex justify-between items-center text-xs font-bold">
+              <span class="opacity-90"><i class="fas fa-microphone-alt mr-1"></i>次の予定・スタジオ</span>
+              <span class="bg-white/25 px-2.5 py-0.5 rounded-full">{{ daysLabel(nextStudio.日にち) }}</span>
+            </div>
+            <p class="text-2xl font-black mt-1 leading-tight">{{ fmtDateJa(nextStudio.日にち) }}</p>
+            <p v-if="nextStudio.開始時間" class="text-lg font-black leading-tight"><i class="far fa-clock mr-1 opacity-80"></i>{{ nextStudio.開始時間 }}〜{{ nextStudio.終了時間 }}</p>
+            <p class="text-sm font-bold truncate"><i class="fas fa-map-marker-alt mr-1 opacity-80"></i>{{ nextStudio.場所 || '場所未定' }}</p>
+            <p v-if="(nextStudio.参加メンバー || []).length" class="text-[11px] opacity-90 truncate mt-0.5"><i class="fas fa-users mr-1"></i>{{ memberLine(nextStudio.参加メンバー) }}</p>
+            <p v-if="nextStudio.備考" class="text-[11px] bg-white/15 rounded-lg px-2 py-1 mt-2 truncate">{{ nextStudio.備考.split('\n').filter(Boolean).join(' / ') }}</p>
+          </div>
+
           <div v-if="nextLive" @click="goToLiveDetail(nextLive)"
             class="bg-gradient-to-br from-teal-500 to-emerald-600 text-white rounded-3xl p-4 shadow-lg active:scale-[0.98] transition cursor-pointer">
             <div class="flex justify-between items-center text-xs font-bold">
@@ -101,7 +115,7 @@
             <button @click="openLiveModal()" class="bg-teal-600 text-white font-bold text-sm px-5 py-2.5 rounded-full"><i class="fas fa-plus mr-1"></i>ライブを追加</button>
           </div>
 
-          <div v-if="nextStudio" @click="openStudioModal(nextStudio)"
+          <div v-if="nextStudio && !studioFirst" @click="openStudioModal(nextStudio)"
             class="bg-white rounded-2xl border border-orange-200 p-3 flex items-center gap-3 shadow-sm active:bg-orange-50 cursor-pointer">
             <div class="w-11 h-11 rounded-xl bg-orange-500 text-white flex items-center justify-center shrink-0"><i class="fas fa-microphone-alt text-lg"></i></div>
             <div class="min-w-0 flex-grow">
@@ -1721,6 +1735,8 @@
           .sort((a, b) => String(a.日にち).localeCompare(String(b.日にち))));
         const nextLive = computed(() => upcomingLives.value[0] || null);
         const nextStudio = computed(() => upcomingStudios.value[0] || null);
+        // 日付が近いほうを一番上に(同じ日ならライブを上)
+        const studioFirst = computed(() => !!nextStudio.value && (!nextLive.value || String(nextStudio.value.日にち) < String(nextLive.value.日にち)));
         const laterItems = computed(() => [
           ...upcomingLives.value.slice(1).map(row => ({ kind: 'live', row })),
           ...upcomingStudios.value.slice(1).map(row => ({ kind: 'studio', row })),
@@ -2689,7 +2705,7 @@
           newSongVideo, getSongVideos, getMemberName, addSongVideo, removeSongVideo,
           isSupport, memberGroups, sortMembers, memberLine, todayStr,
           me, showMePicker, setMe, ANSWERS, answerMark, answerStyle, attendanceOf, targetsOf, answerSummary, myAnswer, unansweredLives, answer,
-          nextLive, nextStudio, laterItems, daysLabel, fmtDateShort, setlistCount, navTabs, moreTiles, clickMore,
+          nextLive, nextStudio, studioFirst, laterItems, daysLabel, fmtDateShort, setlistCount, navTabs, moreTiles, clickMore,
           adminUnlocked, adminPinHash, pinInput, pinFirst, pinError, pinKey, studioView, studioList,
           liveViewMode, calendarYear, sortedLivesDesc, formatDate, liveSearch, liveEra, liveYear, liveYears, actsOf, actInput, addAct, removeAct,
           getLivesInMonth, hasLiveMonth, getStudiosInMonth, hasStudioMonth, sortedMonths, uniqueVenues,
