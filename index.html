@@ -71,12 +71,12 @@
           <div v-if="studioFirst" @click="openStudioModal(nextStudio)"
             class="bg-gradient-to-br from-orange-500 to-amber-500 text-white rounded-3xl p-4 shadow-lg active:scale-[0.98] transition cursor-pointer">
             <div class="flex justify-between items-center text-xs font-bold">
-              <span class="opacity-90"><i class="fas fa-microphone-alt mr-1"></i>次の予定・スタジオ</span>
+              <span class="opacity-90"><i class="fas fa-microphone-alt mr-1"></i>次の予定・スタジオ<span v-if="nextStudio.仮" class="ml-1.5 bg-white text-orange-600 px-1.5 rounded">仮</span></span>
               <span class="bg-white/25 px-2.5 py-0.5 rounded-full">{{ daysLabel(nextStudio.日にち) }}</span>
             </div>
             <p class="text-2xl font-black mt-1 leading-tight">{{ fmtDateJa(nextStudio.日にち) }}</p>
             <p v-if="nextStudio.開始時間" class="text-lg font-black leading-tight"><i class="far fa-clock mr-1 opacity-80"></i>{{ nextStudio.開始時間 }}〜{{ nextStudio.終了時間 }}</p>
-            <p class="text-sm font-bold truncate"><i class="fas fa-map-marker-alt mr-1 opacity-80"></i>{{ nextStudio.場所 || '場所未定' }}</p>
+            <p class="text-sm font-bold truncate"><i class="fas fa-map-marker-alt mr-1 opacity-80"></i>{{ nextStudio.場所 || (nextStudio.仮 ? '仮押さえ(タップで本登録)' : '場所未定') }}</p>
             <p v-if="(nextStudio.参加メンバー || []).length" class="text-[11px] opacity-90 truncate mt-0.5"><i class="fas fa-users mr-1"></i>{{ memberLine(nextStudio.参加メンバー) }}</p>
             <p v-if="nextStudio.備考" class="text-[11px] bg-white/15 rounded-lg px-2 py-1 mt-2 truncate">{{ nextStudio.備考.split('\n').filter(Boolean).join(' / ') }}</p>
           </div>
@@ -129,6 +129,7 @@
               <i class="fas w-4 text-center text-sm" :class="it.kind === 'live' ? 'fa-guitar text-teal-500' : 'fa-microphone-alt text-orange-500'"></i>
               <span class="flex-grow min-w-0 text-sm text-gray-800 truncate">{{ it.kind === 'live' ? (it.row.ライブ場所 || it.row.ライブタイトル || '未定') : (it.row.場所 || 'スタジオ') }}</span>
               <span v-if="it.kind === 'live' && it.row.ステータス === '検討中'" class="text-[10px] font-bold bg-yellow-100 text-yellow-700 px-1.5 rounded">検討中</span>
+              <span v-if="it.row.仮" class="text-[10px] font-bold bg-orange-100 text-orange-600 px-1.5 rounded">仮</span>
             </button>
             <p v-if="!laterItems.length" class="text-xs text-gray-400 text-center py-3">ほかの予定はありません</p>
             <button @click="currentPage = 'all_calendar'" class="w-full text-right text-xs font-bold text-indigo-600 px-3 py-2">年間スケジュールを見る <i class="fas fa-chevron-right text-[10px]"></i></button>
@@ -713,8 +714,22 @@
             </div>
 
             <div class="space-y-3">
-              <div v-for="st in studioList" :key="st.ID" @click="openStudioModal(st)"
-                class="bg-white p-4 rounded-xl shadow border border-gray-100 flex flex-col active:bg-orange-50 cursor-pointer">
+              <p v-if="studioView === 'upcoming' && studioList.some(x => x.仮)" class="text-[11px] text-gray-400 text-center -mt-1">
+                点線は仮のスタジオ(毎週日曜 7:00〜9:00・ライブの日は除く)。タップで本登録、<b>左にスライドで削除</b></p>
+              <div v-for="st in studioList" :key="st.ID" class="relative rounded-xl overflow-hidden">
+                <button v-show="swipeOffset(st.ID) < 0" @click="deleteStudioItem(st)" class="absolute inset-y-0 right-0 w-24 bg-red-500 text-white font-black text-sm flex flex-col items-center justify-center">
+                  <i class="fas fa-trash-alt text-lg mb-0.5"></i>削除</button>
+              <div v-if="st.仮" @click="swipeTap(st)" @touchstart="swStart($event, st.ID)" @touchmove="swMove($event, st.ID)" @touchend="swEnd(st.ID)"
+                :style="{ transform: `translateX(${swipeOffset(st.ID)}px)`, transition: swDragging === st.ID ? 'none' : 'transform .2s' }"
+                class="relative bg-white px-4 py-2.5 rounded-xl border-2 border-dashed border-orange-200 flex items-center gap-3 cursor-pointer active:bg-orange-50">
+                <span class="text-[10px] font-black bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">仮</span>
+                <span class="font-bold text-gray-700">{{ formatDate(st.日にち) }}</span>
+                <span class="text-xs text-orange-600 font-bold">{{ st.開始時間 }}〜{{ st.終了時間 }}</span>
+                <span class="ml-auto text-[11px] text-gray-400">{{ daysLabel(st.日にち) }}</span>
+              </div>
+              <div v-else @click="swipeTap(st)" @touchstart="swStart($event, st.ID)" @touchmove="swMove($event, st.ID)" @touchend="swEnd(st.ID)"
+                :style="{ transform: `translateX(${swipeOffset(st.ID)}px)`, transition: swDragging === st.ID ? 'none' : 'transform .2s' }"
+                class="relative bg-white p-4 rounded-xl shadow border border-gray-100 flex flex-col active:bg-orange-50 cursor-pointer">
                 <div class="flex justify-between items-start mb-2">
                   <div>
                     <h3 class="font-bold text-gray-800 flex items-center">
@@ -745,6 +760,8 @@
                 </div>
                 <p v-if="st.備考" class="text-xs text-gray-500 mt-1 bg-gray-50 p-2 rounded whitespace-pre-line">{{ st.備考 }}</p>
               </div>
+              </div>
+              <p v-if="studioView === 'upcoming' && holdsHidden" class="text-[11px] text-gray-400 text-center py-2">ここから先も2040年末まで、毎週日曜に仮があります</p>
               <div v-if="studioList.length === 0"
                 class="text-center py-10 text-gray-400">{{ studioView === 'upcoming' ? '決まっているスタジオはありません' : 'この月はありません' }}</div>
             </div>
@@ -1627,7 +1644,7 @@
 
         const db = ref({
           songs: [], lives: [], setlists: [], guests: [], stagePlots: [],
-          files: [], sns: [], studios: [], members: [], songVideos: [], knowledge: [], attendance: []
+          files: [], sns: [], studios: [], members: [], songVideos: [], knowledge: [], attendance: [], studio_holds: []
         });
 
         // --- API 通信 (GitHub Pages対応) ---
@@ -1661,7 +1678,7 @@
         const callApi = async (action, data = null) => {
           switch (action) {
             case 'getAllData': {
-              const tables = ['songs', 'lives', 'setlists', 'guests', 'stagePlots', 'files', 'studios', 'members', 'songVideos', 'ai_knowledge', 'attendance'];
+              const tables = ['songs', 'lives', 'setlists', 'guests', 'stagePlots', 'files', 'studios', 'members', 'songVideos', 'ai_knowledge', 'attendance', 'studio_holds'];
               const rows = await Promise.all(tables.map(t => sb(`${t}?select=*&limit=5000`)));
               const out = {};
               tables.forEach((t, i) => { out[t] = rows[i] || []; });
@@ -1671,6 +1688,8 @@
             case 'saveSong': return upsert('songs', data);
             case 'saveLive': return upsert('lives', data);
             case 'saveStudio': return upsert('studios', data);
+            case 'deleteStudio': await sb(`studios?ID=eq.${encodeURIComponent(data)}`, { method: 'DELETE' }); return true;
+            case 'deleteHold': await sb(`studio_holds?ID=eq.${encodeURIComponent(data)}`, { method: 'DELETE' }); return true;
             case 'saveSongVideo': return upsert('songVideos', data);
             case 'saveGuest': return upsert('guests', data);
             case 'saveMember': return upsert('members', data);
@@ -1699,7 +1718,7 @@
               songs: data.songs || [], lives: data.lives || [], setlists: data.setlists || [],
               guests: data.guests || [], stagePlots: data.stagePlots || [], files: data.files || [],
               sns: db.value.sns || [], studios: data.studios || [], members: data.members || [],
-              songVideos: data.songVideos || [], knowledge: data.ai_knowledge || [], attendance: data.attendance || []
+              songVideos: data.songVideos || [], knowledge: data.ai_knowledge || [], attendance: data.attendance || [], studio_holds: data.studio_holds || []
             };
           } catch (err) {
             alert(err.message);
@@ -1721,7 +1740,14 @@
         };
         const upcomingLives = computed(() => db.value.lives.filter(l => String(l.日にち || '') >= todayStr() && l.ステータス !== '中止')
           .sort((a, b) => String(a.日にち).localeCompare(String(b.日にち))));
-        const upcomingStudios = computed(() => db.value.studios.filter(x => String(x.日にち || '') >= todayStr())
+        // 仮のスタジオ(毎週日曜)は studio_holds に別で持ち、同じ日に本登録があれば出さない
+        const holdRows = computed(() => {
+          // 本登録のスタジオがある日と、ライブがある日には仮を出さない
+          const real = new Set([...db.value.studios.map(x => x.日にち), ...db.value.lives.filter(l => l.ステータス !== '中止').map(l => l.日にち)]);
+          return (db.value.studio_holds || []).filter(h => !real.has(h.日にち))
+            .map(h => ({ ID: 'hold:' + h.ID, holdId: h.ID, 仮: true, 日にち: h.日にち, 開始時間: h.開始時間, 終了時間: h.終了時間, 場所: '', 参加メンバー: [], 備考: '' }));
+        });
+        const upcomingStudios = computed(() => [...db.value.studios, ...holdRows.value].filter(x => String(x.日にち || '') >= todayStr())
           .sort((a, b) => String(a.日にち).localeCompare(String(b.日にち))));
         const nextLive = computed(() => upcomingLives.value[0] || null);
         const nextStudio = computed(() => upcomingStudios.value[0] || null);
@@ -1793,8 +1819,11 @@
 
         // スタジオ: これから/終わった
         const studioView = ref('upcoming');
+        const HOLD_DAYS = 120;
+        const holdLimit = () => { const d = new Date(); d.setDate(d.getDate() + HOLD_DAYS); return d.toISOString().slice(0, 10); };
+        const holdsHidden = computed(() => upcomingStudios.value.some(x => x.仮 && x.日にち > holdLimit()));
         const studioList = computed(() => studioView.value === 'upcoming'
-          ? upcomingStudios.value
+          ? upcomingStudios.value.filter(x => !x.仮 || x.日にち <= holdLimit())
           : getStudiosInExactMonth(studioYear.value, studioMonth.value).filter(x => String(x.日にち || '') < todayStr()));
 
         const saveSettings = () => {
@@ -1990,12 +2019,42 @@
         // 動画URLは改行区切りで1列に保存(既存の1件だけのデータもそのまま使える)
         const urlList = (s) => String(s || '').split(/\s+/).map(x => x.trim()).filter(Boolean);
         const openStudioModal = (st) => {
-          if (st) editStudio.value = { ...st };
+          if (st && st.仮) {
+            // 仮 → 本登録: いつもの場所と正規メンバーを入れておく
+            const last = [...db.value.studios].sort((a, b) => String(b.日にち).localeCompare(String(a.日にち)))[0];
+            editStudio.value = { ID: '', holdId: st.holdId, 日にち: st.日にち, 開始時間: st.開始時間, 終了時間: st.終了時間, 場所: last?.場所 || '',
+              参加メンバー: db.value.members.filter(m => m.区分 !== 'サポート').map(m => m.ID), 備考: last?.備考 || '', 動画URL: '' };
+          } else if (st) editStudio.value = { ...st };
           else editStudio.value = { ID: '', 日にち: new Date().toISOString().slice(0, 10), 開始時間: '', 終了時間: '', 場所: '', 参加メンバー: [], 備考: '', 動画URL: '' };
           if (!editStudio.value.参加メンバー) editStudio.value.参加メンバー = [];
           studioUrls.value = urlList(editStudio.value.動画URL);
           if (!studioUrls.value.length) studioUrls.value = [''];
           showStudioModal.value = true;
+        };
+        // 左スライドで削除ボタンを出す
+        const swOpen = ref(''); const swDragging = ref(''); const swDx = ref(0); let swX0 = 0, swY0 = 0, swLock = '';
+        const swipeOffset = (id) => swDragging.value === id ? swDx.value : (swOpen.value === id ? -96 : 0);
+        const swStart = (e, id) => { swX0 = e.touches[0].clientX; swY0 = e.touches[0].clientY; swLock = ''; swDx.value = swOpen.value === id ? -96 : 0; if (swOpen.value && swOpen.value !== id) swOpen.value = ''; };
+        const swMove = (e, id) => {
+          const dx = e.touches[0].clientX - swX0, dy = e.touches[0].clientY - swY0;
+          if (!swLock) { if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return; swLock = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y'; }
+          if (swLock !== 'x') return;
+          swDragging.value = id;
+          swDx.value = Math.max(-120, Math.min(0, (swOpen.value === id ? -96 : 0) + dx));
+        };
+        const swEnd = (id) => {
+          if (swDragging.value === id) { swOpen.value = swDx.value < -48 ? id : ''; swDragging.value = ''; swJustSwiped = true; setTimeout(() => { swJustSwiped = false; }, 300); }
+        };
+        let swJustSwiped = false;
+        const swipeTap = (st) => { if (swJustSwiped) return; if (swOpen.value) { swOpen.value = ''; return; } openStudioModal(st); };
+        const deleteStudioItem = async (st) => {
+          if (!st.仮 && !confirm(`${formatDate(st.日にち)} のスタジオを削除しますか?`)) { swOpen.value = ''; return; }
+          try {
+            if (st.仮) { await callApi('deleteHold', st.holdId); db.value.studio_holds = db.value.studio_holds.filter(h => h.ID !== st.holdId); }
+            else { await callApi('deleteStudio', st.ID); db.value.studios = db.value.studios.filter(x => x.ID !== st.ID); }
+            swOpen.value = '';
+            showToast(`${formatDate(st.日にち)} のスタジオを削除しました`);
+          } catch (err) { alert(err.message); }
         };
         const toggleStudioMember = (id) => {
           const arr = editStudio.value.参加メンバー || [];
@@ -2008,7 +2067,10 @@
           saving.value = true;
           try {
             editStudio.value.動画URL = studioUrls.value.map(x => (x || '').trim()).filter(Boolean).join('\n');
-            const res = await callApi('saveStudio', editStudio.value);
+            const holdId = editStudio.value.holdId;
+            const { holdId: _h, 仮: _k, ...row } = editStudio.value;
+            const res = await callApi('saveStudio', row);
+            if (holdId) { try { await callApi('deleteHold', holdId); } catch (e) { /* 本登録は済んでいる */ } db.value.studio_holds = db.value.studio_holds.filter(h => h.ID !== holdId); }
             showStudioModal.value = false;
             const idx = db.value.studios.findIndex(s => s.ID === res.ID);
             if (idx >= 0) db.value.studios.splice(idx, 1, res); else db.value.studios.push(res);
@@ -2696,7 +2758,8 @@
           isSupport, memberGroups, sortMembers, memberLine, todayStr,
           me, showMePicker, setMe, ANSWERS, answerMark, answerStyle, attendanceOf, targetsOf, answerSummary, myAnswer, unansweredLives, answer,
           nextLive, nextStudio, studioFirst, laterItems, daysLabel, fmtDateShort, setlistCount, navTabs, moreTiles, clickMore,
-          adminUnlocked, adminPinHash, pinInput, pinFirst, pinError, pinKey, studioView, studioList,
+          adminUnlocked, adminPinHash, pinInput, pinFirst, pinError, pinKey, studioView, studioList, holdsHidden,
+          swDragging, swipeOffset, swStart, swMove, swEnd, swipeTap, deleteStudioItem,
           liveViewMode, calendarYear, sortedLivesDesc, formatDate, liveSearch, liveEra, liveYear, liveYears, actsOf, actInput, addAct, removeAct,
           getLivesInMonth, hasLiveMonth, getStudiosInMonth, hasStudioMonth, sortedMonths, uniqueVenues,
           studioYear, studioMonth, changeStudioMonth, getStudiosInExactMonth, uniqueStudioVenues,
