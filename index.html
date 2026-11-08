@@ -619,7 +619,7 @@
 
       </transition>
 
-      <!-- フリーページ(誰でも編集できるメモ) -->
+      <!-- フリーページ(誰でも編集できるページ。テンプレから作れる) -->
       <transition name="fade">
         <div v-if="currentPage === 'pages'" class="absolute inset-0 z-30 bg-gray-50 flex flex-col pt-[60px]">
           <div class="p-3 bg-white border-b flex justify-between items-center shadow-sm sticky top-[60px] z-10 gap-2">
@@ -628,7 +628,7 @@
                 <i class="fas fa-arrow-left"></i></button>
               <h2 class="font-bold text-gray-700 truncate">
                 <template v-if="!fpActive"><i class="fas fa-pen-to-square mr-1 text-amber-500"></i>フリーページ</template>
-                <template v-else>{{ fpActive.アイコン || '📝' }} {{ fpEditing ? '編集中' : (fpActive.タイトル || '無題') }}</template>
+                <template v-else>{{ fpActive.アイコン || '📝' }} {{ fpEditing ? (fpActive.ID ? '編集中' : '新しいページ') : (fpActive.タイトル || '無題') }}</template>
               </h2>
             </div>
             <div class="flex gap-2 shrink-0">
@@ -636,7 +636,7 @@
                 <i class="fas fa-plus mr-1"></i>新しいページ</button>
               <template v-else-if="!fpEditing">
                 <button @click="fpEdit" class="bg-amber-500 text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-sm">
-                  <i class="fas fa-pen mr-1"></i>編集</button>
+                  <i class="fas fa-pen mr-1"></i>{{ fpActive.種類 === 'tour' ? 'タイトル・メモ' : '編集' }}</button>
               </template>
               <template v-else>
                 <button @click="fpCancel" class="bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full text-xs font-bold">やめる</button>
@@ -649,7 +649,7 @@
           <div class="flex-1 overflow-y-auto p-3 pb-28">
             <!-- 一覧 -->
             <div v-if="!fpActive" class="space-y-2">
-              <p class="text-[11px] text-gray-400 px-1">メンバーなら誰でも書いて・直して・消せるページです。</p>
+              <p class="text-[11px] text-gray-400 px-1">メンバーなら誰でも書いて・直して・消せるページです。テンプレから作れます。</p>
               <div v-if="fpLoading && !fpPages.length" class="text-center text-gray-400 py-10"><i class="fas fa-sync fa-spin"></i></div>
               <div v-else-if="!fpPages.length" class="text-center text-gray-400 py-10 text-sm">まだページがありません</div>
               <button v-for="pg in fpPages" :key="pg.ID" @click="fpOpen(pg)"
@@ -657,27 +657,91 @@
                 <span class="text-2xl w-9 text-center">{{ pg.アイコン || '📝' }}</span>
                 <span class="min-w-0 flex-1">
                   <span class="block font-bold text-gray-800 truncate">{{ pg.タイトル || '無題' }}</span>
-                  <span class="block text-[11px] text-gray-400 truncate">{{ fpPreview(pg.本文) }}</span>
+                  <span class="block text-[11px] text-gray-400 truncate">{{ fpPreview(pg) }}</span>
                 </span>
                 <span class="text-[10px] text-gray-400 shrink-0">{{ fpWhen(pg.更新日時) }}</span>
               </button>
             </div>
 
             <!-- 表示 -->
-            <div v-else-if="!fpEditing" class="bg-white rounded-2xl shadow-sm border p-4">
-              <h1 class="text-xl font-black text-gray-800 mb-1">{{ fpActive.アイコン || '📝' }} {{ fpActive.タイトル || '無題' }}</h1>
-              <p class="text-[10px] text-gray-400 mb-3">最終更新 {{ fpWhen(fpActive.更新日時) }}</p>
-              <div class="fp-body text-sm text-gray-700" v-html="fpRender(fpActive.本文)" @click="fpBodyClick"></div>
-              <p v-if="!(fpActive.本文 || '').trim()" class="text-gray-400 text-sm">まだ何も書かれていません。「編集」から書けます。</p>
+            <div v-else-if="!fpEditing" class="space-y-3">
+              <div class="bg-white rounded-2xl shadow-sm border p-4">
+                <h1 class="text-xl font-black text-gray-800 mb-1">{{ fpActive.アイコン || '📝' }} {{ fpActive.タイトル || '無題' }}</h1>
+                <p class="text-[10px] text-gray-400" :class="fpActive.種類 === 'tour' && !(fpActive.本文 || '').trim() ? '' : 'mb-3'">最終更新 {{ fpWhen(fpActive.更新日時) }}</p>
+                <div class="fp-body text-sm text-gray-700" v-html="fpRender(fpActive.本文)" @click="fpBodyClick"></div>
+                <p v-if="fpActive.種類 !== 'tour' && !(fpActive.本文 || '').trim()" class="text-gray-400 text-sm">まだ何も書かれていません。「編集」から書けます。</p>
+              </div>
+
+              <!-- ツアー予定 -->
+              <template v-if="fpActive.種類 === 'tour'">
+                <div class="flex gap-2">
+                  <div v-for="c in tourCounts" :key="c.st" class="flex-1 rounded-xl px-2 py-2 text-center" :class="TOUR_STYLE[c.st]">
+                    <div class="text-lg font-black leading-none">{{ c.n }}</div>
+                    <div class="text-[10px] font-bold mt-0.5">{{ c.st }}</div>
+                  </div>
+                </div>
+                <div v-if="tourDupes.length" class="bg-amber-50 border border-amber-200 rounded-xl p-2.5 text-[11px] text-amber-800">
+                  <div class="font-bold mb-1"><i class="fas fa-users mr-1"></i>複数の公演に名前があるバンド</div>
+                  <div class="flex flex-wrap gap-x-3 gap-y-0.5">
+                    <span v-for="d in tourDupes" :key="d.name"><b>{{ d.name }}</b>({{ d.cities.join('・') }})</span>
+                  </div>
+                </div>
+                <p class="text-[10px] text-gray-400 px-1">対バン名をタップ → 打診中⇄出演確定 / 右上の状況をタップ → 切り替え</p>
+
+                <div v-for="g in tourGroups" :key="g.label">
+                  <h3 class="font-black text-gray-600 text-sm px-1 mb-1.5 mt-1">{{ g.label }}</h3>
+                  <div class="space-y-2">
+                    <div v-for="s in g.shows" :key="s.id" class="bg-white rounded-2xl border shadow-sm p-3">
+                      <div class="flex items-start justify-between gap-2">
+                        <div class="min-w-0">
+                          <div class="font-black text-gray-800">{{ s.都市 || '未定' }}公演 <span v-if="s.都道府県 && s.都道府県 !== s.都市" class="text-[11px] font-bold text-gray-400">{{ s.都道府県 }}</span></div>
+                          <div class="text-xs text-gray-500 mt-0.5">
+                            <i class="fas fa-location-dot mr-0.5 text-gray-400"></i>{{ s.会場 || '会場未定' }}
+                            <span class="mx-1 text-gray-300">|</span>
+                            <i class="far fa-calendar mr-0.5 text-gray-400"></i><span :class="s.日付 ? 'font-bold text-gray-700' : ''">{{ s.日付 ? fmtDateShort(s.日付) : '日付未定' }}</span>
+                          </div>
+                        </div>
+                        <button @click="tourCycle(s)" :disabled="saving" class="shrink-0 text-[11px] font-bold px-2.5 py-1 rounded-full" :class="TOUR_STYLE[s.状況]">{{ s.状況 }}</button>
+                      </div>
+                      <div v-if="s.確定.length" class="mt-2 flex flex-wrap items-center gap-1">
+                        <span class="text-[10px] font-bold text-emerald-600 mr-0.5">出演</span>
+                        <button v-for="n in s.確定" :key="'k' + n" @click="tourToggleAct(s, n)" :disabled="saving"
+                          class="text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full px-2 py-0.5">{{ n }}</button>
+                      </div>
+                      <div v-if="s.打診中.length" class="mt-1.5 flex flex-wrap items-center gap-1">
+                        <span class="text-[10px] font-bold text-amber-600 mr-0.5">打診中</span>
+                        <button v-for="n in s.打診中" :key="'d' + n" @click="tourToggleAct(s, n)" :disabled="saving"
+                          class="text-xs bg-amber-50 text-amber-800 border border-dashed border-amber-300 rounded-full px-2 py-0.5">{{ n }}</button>
+                      </div>
+                      <p v-if="s.メモ" class="text-xs text-gray-500 mt-2 whitespace-pre-wrap">{{ s.メモ }}</p>
+                      <div class="flex gap-2 mt-2.5 justify-end">
+                        <button v-if="tourLiveOf(s)" @click="goToLiveDetail(tourLiveOf(s))" class="text-[11px] font-bold text-teal-600 bg-teal-50 rounded-full px-2.5 py-1">
+                          <i class="fas fa-guitar mr-1"></i>ライブを開く</button>
+                        <button v-if="s.日付" @click="tourToLive(s)" class="text-[11px] font-bold text-white bg-teal-500 rounded-full px-2.5 py-1">
+                          <i class="fas" :class="tourLiveOf(s) ? 'fa-rotate' : 'fa-plus'"></i> {{ tourLiveOf(s) ? 'ライブに反映' : 'ライブに登録' }}</button>
+                        <button @click="tourOpenEdit(s)" class="text-[11px] font-bold text-gray-600 bg-gray-100 rounded-full px-2.5 py-1">
+                          <i class="fas fa-pen mr-1"></i>編集</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div v-if="!tourShows.length" class="text-center text-gray-400 text-sm py-6">まだ公演がありません</div>
+                <button @click="tourOpenEdit(null)" class="w-full border-2 border-dashed border-amber-300 text-amber-600 rounded-2xl py-3 font-bold text-sm active:bg-amber-50">
+                  <i class="fas fa-plus mr-1"></i>公演を追加</button>
+              </template>
+
+              <button @click="fpSaveAsTemplate" class="w-full text-gray-500 text-xs font-bold py-2">
+                <i class="far fa-copy mr-1"></i>このページをテンプレにする</button>
             </div>
 
             <!-- 編集 -->
             <div v-else class="space-y-2">
               <div class="flex gap-2">
                 <input v-model="fpDraft.アイコン" maxlength="4" class="w-14 text-center text-2xl bg-white border rounded-xl p-2" aria-label="アイコン">
-                <input v-model="fpDraft.タイトル" placeholder="タイトル" class="flex-1 bg-white border rounded-xl px-3 py-2 font-bold">
+                <input v-model="fpDraft.タイトル" :placeholder="fpActive.種類 === 'tour' ? 'ツアー名(例: リリースツアー 2027)' : 'タイトル'" class="flex-1 bg-white border rounded-xl px-3 py-2 font-bold">
               </div>
-              <textarea v-model="fpDraft.本文" rows="22" placeholder="自由に書いてOK"
+              <p v-if="fpActive.種類 === 'tour'" class="text-[11px] text-gray-500 px-1">ツアー全体のメモ(公演カードの上に出ます)。公演は保存したあとの画面で追加します。</p>
+              <textarea v-model="fpDraft.本文" :rows="fpActive.種類 === 'tour' ? 8 : 22" placeholder="自由に書いてOK"
                 class="w-full bg-white border rounded-xl p-3 text-sm leading-relaxed font-mono"></textarea>
               <details class="text-[11px] text-gray-500 bg-white border rounded-xl p-3">
                 <summary class="font-bold cursor-pointer">書き方のヒント</summary>
@@ -692,8 +756,77 @@
                 <i class="fas fa-trash mr-1"></i>このページを削除</button>
             </div>
           </div>
+
         </div>
       </transition>
+      <!-- テンプレ選択 -->
+      <div v-if="fpPicker && currentPage === 'pages'" class="fixed inset-0 z-[60] bg-black/40 flex items-end justify-center" @click.self="fpPicker = false">
+        <div class="bg-white w-full max-w-md rounded-t-3xl p-4 pb-8 max-h-[80vh] overflow-y-auto">
+          <div class="flex justify-between items-center mb-3">
+            <h3 class="font-black text-gray-700">テンプレを選ぶ</h3>
+            <button @click="fpPicker = false" class="text-gray-400 p-1"><i class="fas fa-times"></i></button>
+          </div>
+          <div class="space-y-2">
+            <button v-for="t in FP_BUILTIN" :key="t.key" @click="fpFromTemplate(t)"
+              class="w-full flex items-center gap-3 border rounded-2xl p-3 text-left active:bg-amber-50">
+              <span class="text-2xl w-9 text-center">{{ t.アイコン }}</span>
+              <span class="min-w-0"><span class="block font-bold text-gray-800">{{ t.名前 }}</span><span class="block text-[11px] text-gray-400">{{ t.説明 }}</span></span>
+            </button>
+          </div>
+          <template v-if="fpCustomTemplates.length">
+            <h4 class="text-xs font-bold text-gray-500 mt-4 mb-2">みんなが作ったテンプレ</h4>
+            <div class="space-y-2">
+              <div v-for="t in fpCustomTemplates" :key="t.ID" class="flex items-center gap-2">
+                <button @click="fpFromTemplate(t)" class="flex-1 flex items-center gap-3 border rounded-2xl p-3 text-left active:bg-amber-50 min-w-0">
+                  <span class="text-2xl w-9 text-center">{{ t.アイコン || '📝' }}</span>
+                  <span class="min-w-0"><span class="block font-bold text-gray-800 truncate">{{ t.名前 }}</span>
+                    <span class="block text-[11px] text-gray-400">{{ t.種類 === 'tour' ? 'ツアー予定' : '文章' }}</span></span>
+                </button>
+                <button @click="fpDeleteTemplate(t)" class="p-3 text-gray-300 active:text-red-500" aria-label="テンプレを削除"><i class="fas fa-trash"></i></button>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- 公演カードの編集 -->
+      <div v-if="tourEdit && currentPage === 'pages'" class="fixed inset-0 z-[60] bg-black/40 flex items-end justify-center" @click.self="tourEdit = null">
+        <div class="bg-white w-full max-w-md rounded-t-3xl p-4 pb-8 max-h-[88vh] overflow-y-auto space-y-3">
+          <div class="flex justify-between items-center">
+            <h3 class="font-black text-gray-700">{{ tourEdit.isNew ? '公演を追加' : '公演を編集' }}</h3>
+            <button @click="tourEdit = null" class="text-gray-400 p-1"><i class="fas fa-times"></i></button>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="text-[11px] font-bold text-gray-500">都市<input v-model="tourEdit.都市" placeholder="例: 大阪" class="mt-0.5 w-full border rounded-lg px-2 py-2 text-sm font-normal text-gray-800"></label>
+            <label class="text-[11px] font-bold text-gray-500">都道府県<input v-model="tourEdit.都道府県" list="tour-prefs" placeholder="例: 大阪" class="mt-0.5 w-full border rounded-lg px-2 py-2 text-sm font-normal text-gray-800"></label>
+          </div>
+          <datalist id="tour-prefs"><option v-for="p in PREFS" :key="p" :value="p"></option><option value="石川"></option><option value="兵庫"></option></datalist>
+          <label class="block text-[11px] font-bold text-gray-500">会場<input v-model="tourEdit.会場" placeholder="例: 天王寺 Fireloop" class="mt-0.5 w-full border rounded-lg px-2 py-2 text-sm font-normal text-gray-800"></label>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="text-[11px] font-bold text-gray-500">日付<input type="date" v-model="tourEdit.日付" class="mt-0.5 w-full border rounded-lg px-2 py-2 text-sm font-normal text-gray-800"></label>
+            <label class="text-[11px] font-bold text-gray-500">月(日付が未定のとき)
+              <select v-model="tourEdit.月" :disabled="!!tourEdit.日付" class="mt-0.5 w-full border rounded-lg px-2 py-2 text-sm font-normal text-gray-800 bg-white disabled:bg-gray-100">
+                <option value="">未定</option><option v-for="m in 12" :key="m" :value="m">{{ m }}月</option>
+              </select></label>
+          </div>
+          <div>
+            <div class="text-[11px] font-bold text-gray-500 mb-1">状況</div>
+            <div class="flex gap-2">
+              <button v-for="st in TOUR_STATES" :key="st" @click="tourEdit.状況 = st" class="flex-1 py-2 rounded-xl text-xs font-bold"
+                :class="tourEdit.状況 === st ? TOUR_STYLE[st] : 'bg-gray-50 text-gray-400 border'">{{ st }}</button>
+            </div>
+          </div>
+          <label class="block text-[11px] font-bold text-gray-500">出演確定(「/」区切り)<textarea v-model="tourEdit.確定txt" rows="2" placeholder="NTGSS / 空白の夜" class="mt-0.5 w-full border rounded-lg px-2 py-2 text-sm font-normal text-gray-800"></textarea></label>
+          <label class="block text-[11px] font-bold text-gray-500">打診中・候補(「/」区切り)<textarea v-model="tourEdit.打診中txt" rows="2" placeholder="lone / ペンギンマーケット" class="mt-0.5 w-full border rounded-lg px-2 py-2 text-sm font-normal text-gray-800"></textarea></label>
+          <label class="block text-[11px] font-bold text-gray-500">メモ<textarea v-model="tourEdit.メモ" rows="2" class="mt-0.5 w-full border rounded-lg px-2 py-2 text-sm font-normal text-gray-800"></textarea></label>
+          <div class="flex gap-2 pt-1">
+            <button v-if="!tourEdit.isNew" @click="tourDeleteShow" class="px-4 py-3 rounded-xl text-red-500 bg-red-50 text-sm font-bold"><i class="fas fa-trash"></i></button>
+            <button @click="tourEdit = null" class="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 text-sm font-bold">やめる</button>
+            <button @click="tourSaveEdit" :disabled="saving" class="flex-1 py-3 rounded-xl bg-amber-500 text-white text-sm font-bold disabled:opacity-50">
+              <i class="fas" :class="saving ? 'fa-sync fa-spin' : 'fa-check'"></i> 保存</button>
+          </div>
+        </div>
+      </div>
 
       <!-- 総合カレンダー画面 -->
       <transition name="fade">
@@ -1936,22 +2069,50 @@
 
         // ホームのメニューは並び替え不可(固定)
 
-        // --- フリーページ(誰でも編集できるメモ。テーブル: free_pages) ---
+        // --- フリーページ(誰でも編集できるページ。テーブル: free_pages / page_templates) ---
+        // 種類 'text' = 自由な文章 / 'tour' = ツアー予定(公演カードを データ.shows に持つ)
         const fpPages = ref([]);
         const fpLoading = ref(false);
         const fpActive = ref(null);
         const fpEditing = ref(false);
         const fpDraft = ref({ タイトル: '', アイコン: '📝', 本文: '' });
+        const fpPicker = ref(false);
+        const fpCustomTemplates = ref([]);
+        const fpUid = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2));
+        const fpClone = (o) => (o == null ? null : JSON.parse(JSON.stringify(o)));
+        const fpMD = () => { const d = new Date(); return `${d.getMonth() + 1}/${d.getDate()}`; };
+        // 最初から用意してあるテンプレ
+        const FP_BUILTIN = [
+          { key: 'blank', 名前: '空白', アイコン: '📝', 種類: 'text', 説明: '何もないところから自由に', 本文: () => '' },
+          { key: 'tour', 名前: 'ツアー予定', アイコン: '🎸', 種類: 'tour', 説明: '公演カードで会場・対バン・状況を管理', データ: { shows: [] },
+            本文: () => '- ' },
+          { key: 'trip', 名前: '遠征しおり', アイコン: '🚐', 種類: 'text', 説明: '集合・移動・宿・持ち物',
+            本文: () => '## 日程\n- 日付: \n- 会場: \n- 入り時間: \n\n## 集合・移動\n- 集合場所・時間: \n- 車・運転: \n- 高速・ガソリン代: \n\n## 宿\n- 宿: \n- チェックイン: \n\n## 持ち物\n- [ ] 機材\n- [ ] 物販\n- [ ] 釣り銭\n- [ ] 延長コード\n\n## 精算\n- ' },
+          { key: 'event', 名前: '企画ライブ準備', アイコン: '🎪', 種類: 'text', 説明: 'ブッキング・タイテ・告知・やること',
+            本文: () => '## 概要\n- 日付: \n- 会場: \n- タイトル: \n- チケット: \n\n## ブッキング\n- [ ] \n\n## タイムテーブル\n- \n\n## 告知\n- [ ] フライヤー\n- [ ] SNS告知\n- [ ] 予約フォーム\n\n## やること\n- [ ] \n\n## 精算\n- ' },
+          { key: 'meeting', 名前: '会議メモ', アイコン: '🗒️', 種類: 'text', 説明: '話したこと・決まったこと・宿題', タイトル: () => `会議メモ ${fpMD()}`,
+            本文: () => `## ${fpMD()}\n- 参加: \n\n## 話したこと\n- \n\n## 決まったこと\n- \n\n## 宿題\n- [ ] ` },
+        ];
         const fpLoad = async () => {
           fpLoading.value = true;
           try { fpPages.value = await sb('free_pages?select=*&order=順番.asc,更新日時.desc') || []; }
           catch (e) { alert(e.message); }
           finally { fpLoading.value = false; }
         };
+        const fpLoadTemplates = async () => {
+          try { fpCustomTemplates.value = await sb('page_templates?select=*&order=順番.asc,更新日時.asc') || []; }
+          catch (e) { fpCustomTemplates.value = []; }
+        };
         const fpOpen = (pg) => { fpActive.value = pg; fpEditing.value = false; };
-        const fpNew = () => {
-          fpActive.value = { ID: '', タイトル: '', アイコン: '📝', 本文: '', 更新日時: null };
-          fpDraft.value = { タイトル: '', アイコン: '📝', 本文: '' };
+        const fpNew = () => { fpPicker.value = true; fpLoadTemplates(); };
+        // テンプレを選ぶと、その中身が入った状態で編集画面を開く
+        const fpFromTemplate = (t) => {
+          const body = typeof t.本文 === 'function' ? t.本文() : (t.本文 || '');
+          const title = typeof t.タイトル === 'function' ? t.タイトル() : (t.key ? '' : (t.名前 || ''));
+          const data = fpClone(t.データ) || (t.種類 === 'tour' ? { shows: [] } : null);
+          fpActive.value = { ID: '', タイトル: '', アイコン: t.アイコン || '📝', 本文: '', 種類: t.種類 || 'text', データ: data, 更新日時: null };
+          fpDraft.value = { タイトル: title, アイコン: t.アイコン || '📝', 本文: body };
+          fpPicker.value = false;
           fpEditing.value = true;
         };
         const fpEdit = () => {
@@ -1961,6 +2122,7 @@
         };
         const fpDirty = () => {
           const a = fpActive.value || {}, d = fpDraft.value;
+          if (!a.ID) return true;
           return d.タイトル !== (a.タイトル || '') || d.本文 !== (a.本文 || '') || d.アイコン !== (a.アイコン || '📝');
         };
         const fpCancel = () => {
@@ -1969,19 +2131,22 @@
           if (!fpActive.value.ID) fpActive.value = null;
         };
         const fpBack = () => {
-          if (fpEditing.value) { if (fpDirty() && !confirm('保存せずに戻りますか?')) return; fpEditing.value = false; }
-          if (fpActive.value) { fpActive.value = null; return; }
+          if (tourEdit.value) { tourEdit.value = null; return; }
+          if (fpEditing.value) { if (fpDirty() && !confirm('保存せずに戻りますか?')) return; fpEditing.value = false; if (!fpActive.value.ID) fpActive.value = null; return; }
+          if (fpActive.value) { fpActive.value = null; fpLoad(); return; }
           currentPage.value = 'more';
         };
-        // 保存の直前に、他の人が先に書き換えていないか確かめる
+        // 保存の直前に、他の人が先に書き換えていないか確かめる。上書きしないなら最新を読み直す
         const fpWrite = async (row) => {
           const a = fpActive.value;
           if (a.ID) {
-            const cur = (await sb(`free_pages?ID=eq.${encodeURIComponent(a.ID)}&select=更新日時`) || [])[0];
+            const cur = (await sb(`free_pages?ID=eq.${encodeURIComponent(a.ID)}&select=*`) || [])[0];
             if (cur && a.更新日時 && cur.更新日時 !== a.更新日時 &&
-                !confirm('あなたが開いている間に、ほかの人がこのページを更新しました。\n上書きして保存しますか?(キャンセルすると保存しません)')) return null;
+                !confirm('あなたが開いている間に、ほかの人がこのページを更新しました。\n上書きして保存しますか?\n(キャンセルすると保存せず、最新の内容を読み込みます)')) {
+              fpActive.value = cur; showToast('最新の内容を読み込みました'); return null;
+            }
           }
-          const body = { ...row, 更新日時: new Date().toISOString() };
+          const body = { 種類: a.種類 || 'text', データ: a.データ ?? null, ...row, 更新日時: new Date().toISOString() };
           if (a.ID) body.ID = a.ID; else body.順番 = (fpPages.value.reduce((m, p) => Math.max(m, p.順番 || 0), 0) || 0) + 1;
           const out = await sb('free_pages?on_conflict=ID', { method: 'POST', body, prefer: 'resolution=merge-duplicates,return=representation' });
           return out && out[0];
@@ -2006,6 +2171,139 @@
             fpActive.value = null; fpEditing.value = false; fpLoad();
           } catch (e) { alert(e.message); }
         };
+        // 今のページをテンプレとして保存(みんなの新規作成メニューに出る)
+        const fpSaveAsTemplate = async () => {
+          const a = fpActive.value;
+          const name = prompt('テンプレの名前', a.タイトル || '');
+          if (name == null || !name.trim()) return;
+          let data = fpClone(a.データ);
+          if (a.種類 === 'tour' && data && Array.isArray(data.shows)) {
+            const keep = confirm('公演カードもテンプレに入れますか?\n(OK=会場・対バンごと入れる / キャンセル=公演カードは空にする)');
+            data.shows = keep ? data.shows.map(s => ({ ...s, id: fpUid(), 日付: '', ライブID: '' })) : [];
+          }
+          try {
+            await sb('page_templates', { method: 'POST', body: { 名前: name.trim(), アイコン: a.アイコン || '📝', 種類: a.種類 || 'text', 本文: a.本文 || '', データ: data, 順番: Date.now() % 1000000000 }, prefer: 'return=minimal' });
+            showToast('テンプレにしました');
+          } catch (e) { alert(e.message); }
+        };
+        const fpDeleteTemplate = async (t) => {
+          if (!confirm(`テンプレ「${t.名前}」を削除しますか?\n(このテンプレで作ったページは消えません)`)) return;
+          try { await sb(`page_templates?ID=eq.${encodeURIComponent(t.ID)}`, { method: 'DELETE' }); fpLoadTemplates(); }
+          catch (e) { alert(e.message); }
+        };
+
+        // --- ツアー予定テンプレ ---
+        const TOUR_STATES = ['確定', 'ブッキング中', '調整中'];
+        const TOUR_STYLE = { 確定: 'bg-emerald-500 text-white', ブッキング中: 'bg-amber-400 text-amber-950', 調整中: 'bg-gray-200 text-gray-600' };
+        const TOUR_DOT = { 確定: '🟢', ブッキング中: '🟡', 調整中: '⚪' };
+        const tourNorm = (s) => ({ id: s.id || fpUid(), 月: s.月 ?? '', 日付: s.日付 || '', 都市: s.都市 || '', 都道府県: s.都道府県 || '', 会場: s.会場 || '',
+          状況: TOUR_STATES.includes(s.状況) ? s.状況 : '調整中', 確定: Array.isArray(s.確定) ? s.確定 : [], 打診中: Array.isArray(s.打診中) ? s.打診中 : [], メモ: s.メモ || '', ライブID: s.ライブID || '' });
+        const tourShows = computed(() => {
+          const a = fpActive.value;
+          if (!a || a.種類 !== 'tour') return [];
+          const list = ((a.データ && a.データ.shows) || []).map(tourNorm);
+          const monthOf = (s) => (s.日付 ? Number(s.日付.slice(5, 7)) : (Number(s.月) || 99));
+          return list.sort((x, y) => monthOf(x) - monthOf(y) || String(x.日付 || '9').localeCompare(String(y.日付 || '9')));
+        });
+        const tourGroups = computed(() => {
+          const groups = [];
+          tourShows.value.forEach(s => {
+            const m = s.日付 ? Number(s.日付.slice(5, 7)) : Number(s.月);
+            const label = m ? `${m}月` : '時期未定';
+            let g = groups.find(x => x.label === label);
+            if (!g) { g = { label, shows: [] }; groups.push(g); }
+            g.shows.push(s);
+          });
+          return groups;
+        });
+        const tourCounts = computed(() => TOUR_STATES.map(st => ({ st, n: tourShows.value.filter(s => s.状況 === st).length })));
+        // 2公演以上に名前が出てくるバンド(声のかけすぎ・かぶりの確認用)
+        const tourDupes = computed(() => {
+          const map = new Map();
+          tourShows.value.forEach(s => [...s.確定, ...s.打診中].forEach(n => {
+            const k = n.trim(); if (!k || k === '地元バンド') return;
+            if (!map.has(k)) map.set(k, []);
+            map.get(k).push(s.都市 || '未定');
+          }));
+          return [...map.entries()].filter(([, v]) => v.length > 1).map(([name, cities]) => ({ name, cities }));
+        });
+        const tourLiveOf = (s) => (s.ライブID ? db.value.lives.find(l => l.ID === s.ライブID) || null : null);
+        // 公演データを書き換えて保存(書き換えは mutate(shows) で行う)
+        const tourSave = async (mutate, msg) => {
+          if (saving.value) return false;
+          saving.value = true;
+          try {
+            const a = fpActive.value;
+            const shows = ((a.データ && a.データ.shows) || []).map(tourNorm);
+            mutate(shows);
+            const prev = a.データ;
+            a.データ = { ...(a.データ || {}), shows };
+            const saved = await fpWrite({ タイトル: a.タイトル, アイコン: a.アイコン, 本文: a.本文, データ: a.データ });
+            if (!saved) { if (fpActive.value === a) a.データ = prev; return false; }
+            fpActive.value = saved;
+            if (msg) showToast(msg);
+            return true;
+          } catch (e) { alert(e.message); return false; }
+          finally { saving.value = false; }
+        };
+        const tourCycle = (s) => {
+          const next = TOUR_STATES[(TOUR_STATES.indexOf(s.状況) + TOUR_STATES.length - 1) % TOUR_STATES.length];
+          tourSave(shows => { const x = shows.find(y => y.id === s.id); if (x) x.状況 = next; }, `${s.都市 || '公演'}: ${next}`);
+        };
+        // 対バン名をタップ → 打診中 ⇄ 出演確定
+        const tourToggleAct = (s, name) => {
+          const toKakutei = s.打診中.includes(name);
+          tourSave(shows => {
+            const x = shows.find(y => y.id === s.id); if (!x) return;
+            if (toKakutei) { x.打診中 = x.打診中.filter(n => n !== name); if (!x.確定.includes(name)) x.確定.push(name); }
+            else { x.確定 = x.確定.filter(n => n !== name); if (!x.打診中.includes(name)) x.打診中.push(name); }
+          }, `${name} を${toKakutei ? '出演確定' : '打診中'}に`);
+        };
+        // 公演カードの編集シート
+        const tourEdit = ref(null);
+        const tourOpenEdit = (s) => {
+          const x = s ? tourNorm(s) : tourNorm({});
+          tourEdit.value = { ...x, isNew: !s, 確定txt: x.確定.join(' / '), 打診中txt: x.打診中.join(' / ') };
+        };
+        const tourSplit = (t) => String(t || '').split(/[\/／、,，\n]+/).map(x => x.trim()).filter(Boolean);
+        const tourSaveEdit = async () => {
+          const e = tourEdit.value;
+          const row = tourNorm({ ...e, 確定: tourSplit(e.確定txt), 打診中: tourSplit(e.打診中txt) });
+          if (row.日付) row.月 = Number(row.日付.slice(5, 7));
+          const ok = await tourSave(shows => {
+            const i = shows.findIndex(y => y.id === row.id);
+            if (i >= 0) shows[i] = row; else shows.push(row);
+          }, e.isNew ? '公演を追加しました' : '保存しました');
+          if (ok) tourEdit.value = null;
+        };
+        const tourDeleteShow = async () => {
+          const e = tourEdit.value;
+          if (e.isNew) { tourEdit.value = null; return; }
+          if (!confirm(`${e.都市 || 'この'}公演を削除しますか?`)) return;
+          const ok = await tourSave(shows => { const i = shows.findIndex(y => y.id === e.id); if (i >= 0) shows.splice(i, 1); }, '削除しました');
+          if (ok) tourEdit.value = null;
+        };
+        // 日付が決まった公演を、bandhubのライブ一覧に登録(登録済みなら日付・会場・対バンを反映)
+        const tourToLive = async (s) => {
+          if (!s.日付) { alert('先に日付を入れてください'); return; }
+          const existing = tourLiveOf(s);
+          if (!confirm(existing ? `ライブ「${fmtDateShort(s.日付)} ${s.会場 || ''}」に、日付・会場・対バンを反映しますか?` : `${fmtDateShort(s.日付)} ${s.会場 || '会場未定'} をライブ一覧に登録しますか?`)) return;
+          const title = `${fpActive.value.タイトル || 'ツアー'} ${s.都市 || ''}公演`.trim();
+          const status = s.状況 === '確定' ? '参加' : '検討中';
+          const row = existing
+            ? { ...existing, 日にち: s.日付, ライブ場所: s.会場 || existing.ライブ場所, 都道府県: s.都道府県 || existing.都道府県,
+                対バン: [...new Set([...(Array.isArray(existing.対バン) ? existing.対バン : []), ...s.確定])],
+                ステータス: existing.ステータス === '中止' ? '中止' : status }
+            : { ID: '', 日にち: s.日付, ライブ場所: s.会場 || '', 都道府県: s.都道府県 || '', ライブタイトル: title, '制限時間(分)': 30, ステータス: status,
+                対バン: s.確定.slice(), 備考: '', 参加メンバー: db.value.members.filter(m => m.区分 === '正規').map(m => m.ID) };
+          try {
+            const saved = await callApi('saveLive', row);
+            if (!existing && saved && saved.ID) await tourSave(shows => { const x = shows.find(y => y.id === s.id); if (x) x.ライブID = saved.ID; });
+            showToast(existing ? 'ライブに反映しました' : 'ライブに登録しました');
+            loadData();
+          } catch (e) { alert(e.message); }
+        };
+
         const fpEsc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         const fpInline = (t) => fpEsc(t)
           .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
@@ -2043,18 +2341,25 @@
           try {
             const a = fpActive.value;
             const saved = await fpWrite({ タイトル: a.タイトル, アイコン: a.アイコン, 本文: lines.join('\n') });
+            if (!saved) return;
             if (saved) fpActive.value = saved;
             fpLoad();
           } catch (e) { alert(e.message); }
           finally { saving.value = false; }
         };
-        const fpPreview = (t) => String(t || '').replace(/[#*\-\[\]]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60);
+        const fpPreview = (pg) => {
+          if (pg.種類 === 'tour') {
+            const shows = ((pg.データ && pg.データ.shows) || []);
+            return `${shows.length}公演 · 確定${shows.filter(x => x.状況 === '確定').length} / ブッキング中${shows.filter(x => x.状況 === 'ブッキング中').length} / 調整中${shows.filter(x => !x.状況 || x.状況 === '調整中').length}`;
+          }
+          return String(pg.本文 || '').replace(/[#*\-\[\]]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60);
+        };
         const fpWhen = (ts) => {
           if (!ts) return '';
           const d = new Date(ts); if (isNaN(d)) return '';
           return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
         };
-        Vue.watch(currentPage, (p) => { if (p === 'pages') { fpActive.value = null; fpEditing.value = false; fpLoad(); } });
+        Vue.watch(currentPage, (p) => { if (p === 'pages') { fpActive.value = null; fpEditing.value = false; fpPicker.value = false; tourEdit.value = null; fpLoad(); } });
 
         const clickMenu = (id) => {
           if (id.startsWith('url:')) { window.open(id.slice(4), '_blank'); return; }
@@ -2983,7 +3288,10 @@
           savePlot, resetToMaster, exportPdf, getLiveName,
           editKnowledge, saveKnowledge, removeKnowledge, aiOpen, aiInput, aiLoading, aiMessages, aiScroll, aiChips, sendAi, applyProposal, describeChange, adminTab, showSnsModal, editSns, showPasswords, togglePwd, copyText, openSnsModal, saveSns,
           newMember, addMember, removeMember, shareOnLine,
-          fpPages, fpLoading, fpActive, fpEditing, fpDraft, fpOpen, fpNew, fpEdit, fpCancel, fpBack, fpSave, fpDelete, fpRender, fpBodyClick, fpPreview, fpWhen
+          fpPages, fpLoading, fpActive, fpEditing, fpDraft, fpOpen, fpNew, fpEdit, fpCancel, fpBack, fpSave, fpDelete, fpRender, fpBodyClick, fpPreview, fpWhen,
+          fpPicker, fpCustomTemplates, FP_BUILTIN, fpFromTemplate, fpSaveAsTemplate, fpDeleteTemplate,
+          TOUR_STATES, TOUR_STYLE, TOUR_DOT, tourShows, tourGroups, tourCounts, tourDupes, tourLiveOf, tourCycle, tourToggleAct,
+          tourEdit, tourOpenEdit, tourSaveEdit, tourDeleteShow, tourToLive
         };
       }
     }).mount('#app');
