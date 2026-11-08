@@ -27,6 +27,16 @@
     @keyframes game-sway { 0%,100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-5px) rotate(2deg); } }
     .game-fab { animation: game-sway 3.2s ease-in-out infinite; transform-origin: 50% 60%; }
     .game-fab:active { animation-play-state: paused; }
+    .fp-body h1 { font-size: 1.15rem; font-weight: 900; margin: 1rem 0 .4rem; color: #1e293b; }
+    .fp-body h2 { font-size: 1.05rem; font-weight: 900; margin: 1rem 0 .4rem; padding-bottom: .2rem; border-bottom: 2px solid #fde68a; color: #1e293b; }
+    .fp-body h3 { font-size: .95rem; font-weight: 800; margin: .8rem 0 .3rem; color: #334155; }
+    .fp-body p { margin: .3rem 0; white-space: pre-wrap; }
+    .fp-body ul { margin: .2rem 0 .5rem 1.1rem; list-style: disc; }
+    .fp-body li { margin: .15rem 0; }
+    .fp-body li.fp-task { list-style: none; margin-left: -1.1rem; cursor: pointer; }
+    .fp-body li.fp-done { color: #94a3b8; text-decoration: line-through; }
+    .fp-body a { color: #4f46e5; text-decoration: underline; word-break: break-all; }
+    .fp-body hr { margin: .8rem 0; border-color: #e2e8f0; }
   </style>
 </head>
 
@@ -607,6 +617,82 @@
           </div>
         </div>
 
+      </transition>
+
+      <!-- フリーページ(誰でも編集できるメモ) -->
+      <transition name="fade">
+        <div v-if="currentPage === 'pages'" class="absolute inset-0 z-30 bg-gray-50 flex flex-col pt-[60px]">
+          <div class="p-3 bg-white border-b flex justify-between items-center shadow-sm sticky top-[60px] z-10 gap-2">
+            <div class="flex items-center min-w-0">
+              <button @click="fpBack" class="p-2 mr-2 bg-gray-100 rounded-full active:bg-gray-200 text-gray-500 shrink-0">
+                <i class="fas fa-arrow-left"></i></button>
+              <h2 class="font-bold text-gray-700 truncate">
+                <template v-if="!fpActive"><i class="fas fa-pen-to-square mr-1 text-amber-500"></i>フリーページ</template>
+                <template v-else>{{ fpActive.アイコン || '📝' }} {{ fpEditing ? '編集中' : (fpActive.タイトル || '無題') }}</template>
+              </h2>
+            </div>
+            <div class="flex gap-2 shrink-0">
+              <button v-if="!fpActive" @click="fpNew" class="bg-amber-500 text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-sm">
+                <i class="fas fa-plus mr-1"></i>新しいページ</button>
+              <template v-else-if="!fpEditing">
+                <button @click="fpEdit" class="bg-amber-500 text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-sm">
+                  <i class="fas fa-pen mr-1"></i>編集</button>
+              </template>
+              <template v-else>
+                <button @click="fpCancel" class="bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full text-xs font-bold">やめる</button>
+                <button @click="fpSave" :disabled="saving" class="bg-amber-500 text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-sm disabled:opacity-50">
+                  <i class="fas" :class="saving ? 'fa-sync fa-spin' : 'fa-check'"></i> 保存</button>
+              </template>
+            </div>
+          </div>
+
+          <div class="flex-1 overflow-y-auto p-3 pb-28">
+            <!-- 一覧 -->
+            <div v-if="!fpActive" class="space-y-2">
+              <p class="text-[11px] text-gray-400 px-1">メンバーなら誰でも書いて・直して・消せるページです。</p>
+              <div v-if="fpLoading && !fpPages.length" class="text-center text-gray-400 py-10"><i class="fas fa-sync fa-spin"></i></div>
+              <div v-else-if="!fpPages.length" class="text-center text-gray-400 py-10 text-sm">まだページがありません</div>
+              <button v-for="pg in fpPages" :key="pg.ID" @click="fpOpen(pg)"
+                class="w-full bg-white rounded-2xl shadow-sm border p-3 text-left flex items-center gap-3 active:bg-gray-50">
+                <span class="text-2xl w-9 text-center">{{ pg.アイコン || '📝' }}</span>
+                <span class="min-w-0 flex-1">
+                  <span class="block font-bold text-gray-800 truncate">{{ pg.タイトル || '無題' }}</span>
+                  <span class="block text-[11px] text-gray-400 truncate">{{ fpPreview(pg.本文) }}</span>
+                </span>
+                <span class="text-[10px] text-gray-400 shrink-0">{{ fpWhen(pg.更新日時) }}</span>
+              </button>
+            </div>
+
+            <!-- 表示 -->
+            <div v-else-if="!fpEditing" class="bg-white rounded-2xl shadow-sm border p-4">
+              <h1 class="text-xl font-black text-gray-800 mb-1">{{ fpActive.アイコン || '📝' }} {{ fpActive.タイトル || '無題' }}</h1>
+              <p class="text-[10px] text-gray-400 mb-3">最終更新 {{ fpWhen(fpActive.更新日時) }}</p>
+              <div class="fp-body text-sm text-gray-700" v-html="fpRender(fpActive.本文)" @click="fpBodyClick"></div>
+              <p v-if="!(fpActive.本文 || '').trim()" class="text-gray-400 text-sm">まだ何も書かれていません。「編集」から書けます。</p>
+            </div>
+
+            <!-- 編集 -->
+            <div v-else class="space-y-2">
+              <div class="flex gap-2">
+                <input v-model="fpDraft.アイコン" maxlength="4" class="w-14 text-center text-2xl bg-white border rounded-xl p-2" aria-label="アイコン">
+                <input v-model="fpDraft.タイトル" placeholder="タイトル" class="flex-1 bg-white border rounded-xl px-3 py-2 font-bold">
+              </div>
+              <textarea v-model="fpDraft.本文" rows="22" placeholder="自由に書いてOK"
+                class="w-full bg-white border rounded-xl p-3 text-sm leading-relaxed font-mono"></textarea>
+              <details class="text-[11px] text-gray-500 bg-white border rounded-xl p-3">
+                <summary class="font-bold cursor-pointer">書き方のヒント</summary>
+                <div class="mt-2 space-y-0.5 leading-relaxed">
+                  <div><code># 見出し</code> / <code>## 中見出し</code> / <code>### 小見出し</code></div>
+                  <div><code>- 箇条書き</code></div>
+                  <div><code>- [ ] やること</code> → 表示画面でタップするとチェックできる</div>
+                  <div><code>**太字**</code>、URLはそのままリンクになる</div>
+                </div>
+              </details>
+              <button v-if="fpActive.ID" @click="fpDelete" class="w-full text-red-500 text-xs font-bold py-3">
+                <i class="fas fa-trash mr-1"></i>このページを削除</button>
+            </div>
+          </div>
+        </div>
       </transition>
 
       <!-- 総合カレンダー画面 -->
@@ -1763,9 +1849,10 @@
           { id: 'lives', label: 'ライブ', icon: 'fas fa-guitar', color: 'text-teal-600', match: ['lives', 'live_detail'] },
           { id: 'songs', label: '曲', icon: 'fas fa-music', color: 'text-indigo-600', match: ['songs'] },
           { id: 'studios', label: 'スタジオ', icon: 'fas fa-microphone-alt', color: 'text-orange-500', match: ['studios'] },
-          { id: 'more', label: 'その他', icon: 'fas fa-th-large', color: 'text-fuchsia-600', match: ['more', 'admin'] },
+          { id: 'more', label: 'その他', icon: 'fas fa-th-large', color: 'text-fuchsia-600', match: ['more', 'admin', 'pages'] },
         ];
         const moreTiles = [
+          { id: 'pages', title: 'フリーページ', sub: 'ツアー計画など誰でも書ける', icon: 'fas fa-pen-to-square', color: 'from-amber-500 to-orange-600' },
           { id: 'all_calendar', title: '年間スケジュール', sub: 'ライブとスタジオを月ごとに', icon: 'far fa-calendar-alt', color: 'from-indigo-500 to-blue-600' },
           { id: 'masterplot', title: 'マスターセット図', sub: 'PA向けの基本の機材図', icon: 'fas fa-project-diagram', color: 'from-orange-500 to-red-500' },
           { id: 'analysis', title: 'ライブ分析', sub: '過去のライブを検索・集計', icon: 'fas fa-chart-bar', color: 'from-teal-500 to-emerald-600' },
@@ -1848,6 +1935,126 @@
         ]);
 
         // ホームのメニューは並び替え不可(固定)
+
+        // --- フリーページ(誰でも編集できるメモ。テーブル: free_pages) ---
+        const fpPages = ref([]);
+        const fpLoading = ref(false);
+        const fpActive = ref(null);
+        const fpEditing = ref(false);
+        const fpDraft = ref({ タイトル: '', アイコン: '📝', 本文: '' });
+        const fpLoad = async () => {
+          fpLoading.value = true;
+          try { fpPages.value = await sb('free_pages?select=*&order=順番.asc,更新日時.desc') || []; }
+          catch (e) { alert(e.message); }
+          finally { fpLoading.value = false; }
+        };
+        const fpOpen = (pg) => { fpActive.value = pg; fpEditing.value = false; };
+        const fpNew = () => {
+          fpActive.value = { ID: '', タイトル: '', アイコン: '📝', 本文: '', 更新日時: null };
+          fpDraft.value = { タイトル: '', アイコン: '📝', 本文: '' };
+          fpEditing.value = true;
+        };
+        const fpEdit = () => {
+          const a = fpActive.value;
+          fpDraft.value = { タイトル: a.タイトル || '', アイコン: a.アイコン || '📝', 本文: a.本文 || '' };
+          fpEditing.value = true;
+        };
+        const fpDirty = () => {
+          const a = fpActive.value || {}, d = fpDraft.value;
+          return d.タイトル !== (a.タイトル || '') || d.本文 !== (a.本文 || '') || d.アイコン !== (a.アイコン || '📝');
+        };
+        const fpCancel = () => {
+          if (fpDirty() && !confirm('書いた内容を捨てますか?')) return;
+          fpEditing.value = false;
+          if (!fpActive.value.ID) fpActive.value = null;
+        };
+        const fpBack = () => {
+          if (fpEditing.value) { if (fpDirty() && !confirm('保存せずに戻りますか?')) return; fpEditing.value = false; }
+          if (fpActive.value) { fpActive.value = null; return; }
+          currentPage.value = 'more';
+        };
+        // 保存の直前に、他の人が先に書き換えていないか確かめる
+        const fpWrite = async (row) => {
+          const a = fpActive.value;
+          if (a.ID) {
+            const cur = (await sb(`free_pages?ID=eq.${encodeURIComponent(a.ID)}&select=更新日時`) || [])[0];
+            if (cur && a.更新日時 && cur.更新日時 !== a.更新日時 &&
+                !confirm('あなたが開いている間に、ほかの人がこのページを更新しました。\n上書きして保存しますか?(キャンセルすると保存しません)')) return null;
+          }
+          const body = { ...row, 更新日時: new Date().toISOString() };
+          if (a.ID) body.ID = a.ID; else body.順番 = (fpPages.value.reduce((m, p) => Math.max(m, p.順番 || 0), 0) || 0) + 1;
+          const out = await sb('free_pages?on_conflict=ID', { method: 'POST', body, prefer: 'resolution=merge-duplicates,return=representation' });
+          return out && out[0];
+        };
+        const fpSave = async () => {
+          saving.value = true;
+          try {
+            const d = fpDraft.value;
+            const saved = await fpWrite({ タイトル: d.タイトル.trim() || '無題', アイコン: (d.アイコン || '').trim() || '📝', 本文: d.本文 });
+            if (!saved) return;
+            fpActive.value = saved; fpEditing.value = false;
+            showToast('保存しました');
+            fpLoad();
+          } catch (e) { alert(e.message); }
+          finally { saving.value = false; }
+        };
+        const fpDelete = async () => {
+          const a = fpActive.value;
+          if (!a.ID || !confirm(`「${a.タイトル || '無題'}」を削除しますか?\n(みんなの画面から消えます)`)) return;
+          try {
+            await sb(`free_pages?ID=eq.${encodeURIComponent(a.ID)}`, { method: 'DELETE' });
+            fpActive.value = null; fpEditing.value = false; fpLoad();
+          } catch (e) { alert(e.message); }
+        };
+        const fpEsc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        const fpInline = (t) => fpEsc(t)
+          .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+          .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+        // 簡単なMarkdown表示(見出し・箇条書き・チェックボックス・太字・URL)
+        const fpRender = (text) => {
+          const lines = String(text || '').split('\n');
+          let html = '', inList = false, para = [];
+          const flushPara = () => { if (para.length) { html += `<p>${para.map(fpInline).join('\n')}</p>`; para = []; } };
+          const closeList = () => { if (inList) { html += '</ul>'; inList = false; } };
+          lines.forEach((ln, i) => {
+            let m;
+            if ((m = ln.match(/^(#{1,3})\s+(.*)$/))) { flushPara(); closeList(); const n = m[1].length; html += `<h${n}>${fpInline(m[2])}</h${n}>`; }
+            else if ((m = ln.match(/^\s*[-*・]\s+\[( |x|X)\]\s*(.*)$/))) {
+              flushPara(); if (!inList) { html += '<ul>'; inList = true; }
+              const done = m[1] !== ' ';
+              html += `<li class="fp-task${done ? ' fp-done' : ''}" data-line="${i}">${done ? '☑' : '☐'} ${fpInline(m[2])}</li>`;
+            }
+            else if ((m = ln.match(/^\s*[-*・]\s+(.*)$/))) { flushPara(); if (!inList) { html += '<ul>'; inList = true; } html += `<li>${fpInline(m[1])}</li>`; }
+            else if (/^\s*(---|___)\s*$/.test(ln)) { flushPara(); closeList(); html += '<hr>'; }
+            else if (!ln.trim()) { flushPara(); closeList(); }
+            else { closeList(); para.push(ln); }
+          });
+          flushPara(); closeList();
+          return html;
+        };
+        // 表示画面でチェックボックスをタップしたら、その行だけ切り替えて保存
+        const fpBodyClick = async (ev) => {
+          const li = ev.target.closest && ev.target.closest('li.fp-task');
+          if (!li || saving.value) return;
+          const idx = Number(li.dataset.line);
+          const lines = String(fpActive.value.本文 || '').split('\n');
+          lines[idx] = lines[idx].replace(/\[( |x|X)\]/, (_, c) => (c === ' ' ? '[x]' : '[ ]'));
+          saving.value = true;
+          try {
+            const a = fpActive.value;
+            const saved = await fpWrite({ タイトル: a.タイトル, アイコン: a.アイコン, 本文: lines.join('\n') });
+            if (saved) fpActive.value = saved;
+            fpLoad();
+          } catch (e) { alert(e.message); }
+          finally { saving.value = false; }
+        };
+        const fpPreview = (t) => String(t || '').replace(/[#*\-\[\]]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60);
+        const fpWhen = (ts) => {
+          if (!ts) return '';
+          const d = new Date(ts); if (isNaN(d)) return '';
+          return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        };
+        Vue.watch(currentPage, (p) => { if (p === 'pages') { fpActive.value = null; fpEditing.value = false; fpLoad(); } });
 
         const clickMenu = (id) => {
           if (id.startsWith('url:')) { window.open(id.slice(4), '_blank'); return; }
@@ -2775,7 +2982,8 @@
           addFabricRect, addFabricCircle, addFabricMic, deleteSelected, clearAll,
           savePlot, resetToMaster, exportPdf, getLiveName,
           editKnowledge, saveKnowledge, removeKnowledge, aiOpen, aiInput, aiLoading, aiMessages, aiScroll, aiChips, sendAi, applyProposal, describeChange, adminTab, showSnsModal, editSns, showPasswords, togglePwd, copyText, openSnsModal, saveSns,
-          newMember, addMember, removeMember, shareOnLine
+          newMember, addMember, removeMember, shareOnLine,
+          fpPages, fpLoading, fpActive, fpEditing, fpDraft, fpOpen, fpNew, fpEdit, fpCancel, fpBack, fpSave, fpDelete, fpRender, fpBodyClick, fpPreview, fpWhen
         };
       }
     }).mount('#app');
